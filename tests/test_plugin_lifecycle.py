@@ -85,11 +85,10 @@ class _StubActionService:
 class StubRuntime:
     """顶替 build_runtime 的产物，记录生命周期调用。"""
 
-    def __init__(self, *, settings, gateway, logger, self_id_cache_path, response=None) -> None:
+    def __init__(self, *, settings, gateway, logger, response=None) -> None:
         self.settings = settings
         self.gateway = gateway
         self.logger = logger
-        self.self_id_cache_path = self_id_cache_path
         self.started = False
         self.stopped = False
         self.connected = True
@@ -148,7 +147,7 @@ def test_on_load_starts_runtime_with_host_context():
         assert runtime.started is True
         assert runtime.logger is context.logger, "运行时应拿到宿主的插件日志器"
         assert runtime.gateway is context.gateway
-        assert runtime.self_id_cache_path == tmp_dir / "data" / "flandora_self_id.json"
+        assert runtime.settings.client.attachment_max_bytes == 20 * 1024 * 1024
 
         asyncio.run(plugin.on_unload())
         assert runtime.stopped is True

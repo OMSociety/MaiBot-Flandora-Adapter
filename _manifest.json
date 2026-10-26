@@ -1,9 +1,9 @@
 {
   "manifest_version": 2,
   "id": "omsociety.flandora-adapter",
-  "version": "1.0.1",
+  "version": "1.0.0",
   "name": "Flandora 微信适配器",
-  "description": "通过 OneBot v11 正向 WebSocket 把 Flandora 桥接的微信个人号（群聊与私聊）接入 MaiBot。",
+  "description": "微信个人号适配器，支持 Flandora 客户端",
   "author": {
     "name": "OMSociety",
     "url": "https://github.com/OMSociety"
@@ -20,8 +20,7 @@
     "icon": {
       "type": "local",
       "value": "assets/icon.svg",
-      "fallback": "message-circle",
-      "background": "#E5EAEC"
+      "fallback": "message-circle"
     }
   },
   "host_application": {

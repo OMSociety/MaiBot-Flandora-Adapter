@@ -3,17 +3,12 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, List, Optional
 
 from ..config import FlandoraPluginSettings
-from ..constants import FLANDORA_GATEWAY_NAME, FLANDORA_PLATFORM
+from ..constants import FLANDORA_GATEWAY_NAME, FLANDORA_PLATFORM, FLANDORA_SCOPE
 from ..debug import FlandoraDebugLogger
-from ..runtime_state import (
-    FlandoraRuntimeState,
-    load_cached_account_id,
-    save_cached_account_id,
-)
+from ..runtime_state import FlandoraRuntimeState
 from ..services import FlandoraActionService, FlandoraQueryService
 from ..transport import FlandoraActionError, FlandoraTransport
 from .router import FlandoraEventRouter
@@ -26,7 +21,6 @@ class FlandoraRuntime:
     settings: FlandoraPluginSettings
     gateway: Any
     logger: Any
-    self_id_cache_path: Path
     debug_logger: FlandoraDebugLogger
     router: FlandoraEventRouter
     transport: FlandoraTransport
@@ -53,27 +47,23 @@ class FlandoraRuntime:
     async def handle_connected(self) -> None:
         """连接建立后取机器人账号并上报就绪。"""
 
-        account_id = load_cached_account_id(self.self_id_cache_path)
         try:
             info = await self.query_service.get_login_info()
         except FlandoraActionError as exc:
             self.logger.warning(f"连接已建立但取机器人账号失败：{exc}")
             info = {}
 
-        fetched = str(info.get("user_id") or "").strip()
-        if fetched:
-            account_id = fetched
+        account_id = str(info.get("user_id") or "").strip()
+        if account_id:
             nickname = str(info.get("nickname") or "").strip()
-            save_cached_account_id(self.self_id_cache_path, account_id, nickname)
-        elif account_id:
-            self.logger.info(f"沿用上次缓存的机器人账号：{account_id}")
+            self.logger.info(f"已连上 Flandora：account_id={account_id} nickname={nickname}")
 
         await self.runtime_state.report_connected(
             self.gateway,
             account_id=account_id,
-            scope=self.settings.client.connection_id,
+            scope=FLANDORA_SCOPE,
             metadata={
-                "connection_id": self.settings.client.connection_id,
+                "scope": FLANDORA_SCOPE,
                 "server": self.settings.client.server,
                 "port": self.settings.client.port,
             },
@@ -116,7 +106,6 @@ def build_runtime(
     settings: FlandoraPluginSettings,
     gateway: Any,
     logger: Any,
-    self_id_cache_path: Path,
 ) -> FlandoraRuntime:
     """按一份配置快照装配运行时。
 
@@ -124,7 +113,6 @@ def build_runtime(
         settings: 已通过校验的配置。
         gateway: SDK 网关能力对象（``ctx.gateway``）。
         logger: 插件日志对象。
-        self_id_cache_path: 机器人账号缓存文件路径。
 
     Returns:
         FlandoraRuntime: 可直接 ``start()`` 的运行时。
@@ -172,7 +160,6 @@ def build_runtime(
         settings=settings,
         gateway=gateway,
         logger=logger,
-        self_id_cache_path=self_id_cache_path,
         debug_logger=debug_logger,
         router=router,
         transport=transport,

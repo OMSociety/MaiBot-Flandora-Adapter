@@ -7,7 +7,6 @@
 from __future__ import annotations
 
 import asyncio
-from pathlib import Path
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
 from maibot_sdk import MaiBotPlugin, MessageGateway, PluginConfigBase
@@ -18,7 +17,7 @@ from .constants import (
     FLANDORA_GATEWAY_NAME,
     FLANDORA_PLATFORM,
     FLANDORA_PROTOCOL,
-    PLUGIN_ID,
+    FLANDORA_SCOPE,
 )
 from .runtime import FlandoraRuntime, build_runtime
 from .services import (
@@ -27,8 +26,6 @@ from .services import (
     is_action_response_ok,
 )
 from .transport import FlandoraActionError
-
-_DEFAULT_SELF_ID_CACHE = Path("data") / "plugins" / PLUGIN_ID / "flandora_self_id.json"
 
 
 class FlandoraAdapterPlugin(MaiBotPlugin):
@@ -202,15 +199,6 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
             return FlandoraPluginSettings()
         return config if isinstance(config, FlandoraPluginSettings) else FlandoraPluginSettings()
 
-    def _self_id_cache_path(self) -> Path:
-        """机器人账号缓存的落点。"""
-
-        try:
-            data_dir = self.ctx.paths.data_dir
-        except RuntimeError:
-            return _DEFAULT_SELF_ID_CACHE
-        return Path(data_dir) / "flandora_self_id.json"
-
     def _current_account_id(self) -> str:
         """当前已知的机器人账号。"""
 
@@ -241,14 +229,13 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
                 settings=settings,
                 gateway=self.ctx.gateway,
                 logger=self.ctx.logger,
-                self_id_cache_path=self._self_id_cache_path(),
             )
             runtime.start()
             self._runtime = runtime
             self._connection_signature = settings.client.connection_signature()
             self.ctx.logger.info(
                 f"已启动 Flandora 适配器：server={settings.client.server} "
-                f"port={settings.client.port} scope={settings.client.connection_id}"
+                f"port={settings.client.port} scope={FLANDORA_SCOPE}"
             )
 
     async def _stop_runtime(self) -> None:

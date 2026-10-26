@@ -1,30 +1,13 @@
-# 更新日志
+# Changelog
 
-本文件记录各版本的对外可见变化。格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，
+本项目的更改记录在此文件。
+
+All notable changes to this project are documented in this file.
+
+格式基于 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)；
 版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
-## [1.0.1] - 2026-10-27
-
-### 修复
-
-- 插件无法在麦麦中加载：`on_load` 访问了基类不存在的 `self.logger`，宿主报「插件初始化失败 / 启动失败」。日志器改为经 `self.ctx.logger` 取。
-- 连接建立但取不到机器人账号：上线钩子被同步等待，把读循环压在其后，钩子里发出的动作请求永远等不到响应而超时，导致既不上报运行状态也不写账号缓存。钩子改为后台任务，异常只记日志、不拆连接。
-- 连上后不检查 Flandora 自身状态：补读一次 `get_status`，对微信掉线与收件源未就绪各给一条可定位的告警。
-
-### 新增
-
-- `tests/test_plugin_lifecycle.py`：覆盖 `on_load`、`on_config_update`、`on_unload` 与网关 handler 的真实调用路径。
-- `tests/test_transport.py`：覆盖上线钩子里调动作、钩子异常、握手被拒。
+The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
+and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ## [1.0.0] - 2026-10-27
-
-首个版本。
-
-### 新增
-
-- 以 WebSocket 客户端接入 Flandora 的 OneBot v11 服务端，支持断线指数退避重连与空闲看护。
-- 入站翻译：把 OneBot 消息事件、撤回与戳一戳通知转成麦麦的消息网关事件，并向宿主上报机器人账号。
-- 出站翻译：把麦麦的回复转成 `send_group_msg` / `send_private_msg` 动作请求，并回填平台消息号。
-- 消息段双向映射：文本、@、图片、表情、语音、文件、引用、合并转发。
-- 五项配置：连接参数、收发过滤、通知开关、调试日志。
-- 测试集覆盖消息段编解码、入站消息字典、出站动作选择与清单结构校验。

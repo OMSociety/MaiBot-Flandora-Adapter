@@ -10,6 +10,7 @@ from typing import Any, Mapping
 from ..codecs import build_message_dict, build_notice_dedupe_key, build_notice_message_dict
 from ..config import FlandoraPluginSettings
 from ..constants import (
+    FLANDORA_SCOPE,
     POST_TYPE_MESSAGE,
     POST_TYPE_MESSAGE_SENT,
     POST_TYPE_META_EVENT,
@@ -49,10 +50,10 @@ class FlandoraEventRouter:
         self._settings = settings
 
     @property
-    def connection_id(self) -> str:
-        """当前连接标识。"""
+    def scope(self) -> str:
+        """上报给宿主的会话作用域。"""
 
-        return self._settings.client.connection_id
+        return FLANDORA_SCOPE
 
     def update_settings(self, settings: FlandoraPluginSettings) -> None:
         """替换配置快照（连接参数未变时就地热更新）。"""
@@ -173,7 +174,7 @@ class FlandoraEventRouter:
 
         payload = dict(message_dict)
         payload["account_id"] = str(payload.get("account_id") or "").strip()
-        payload["scope"] = self.connection_id or None
+        payload["scope"] = self.scope
 
         try:
             accepted = await self._gateway.route_message(

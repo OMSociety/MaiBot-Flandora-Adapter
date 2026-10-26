@@ -6,51 +6,7 @@
 
 from __future__ import annotations
 
-import json
-from pathlib import Path
 from typing import Any, Dict, Optional
-
-
-def load_cached_account_id(path: Path) -> str:
-    """读取缓存的机器人账号。
-
-    Args:
-        path: 缓存文件路径。
-
-    Returns:
-        str: 缓存到的账号；文件不存在或内容不可用时返回空串。
-    """
-
-    try:
-        raw = path.read_text(encoding="utf-8")
-    except (OSError, ValueError):
-        return ""
-
-    try:
-        payload = json.loads(raw)
-    except (TypeError, ValueError):
-        return ""
-
-    if isinstance(payload, dict):
-        return str(payload.get("account_id") or "").strip()
-    return ""
-
-
-def save_cached_account_id(path: Path, account_id: str, nickname: str = "") -> None:
-    """写入机器人账号缓存；写失败只忽略，不影响主流程。"""
-
-    normalized = str(account_id or "").strip()
-    if not normalized:
-        return
-
-    try:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(
-            json.dumps({"account_id": normalized, "nickname": nickname}, ensure_ascii=False),
-            encoding="utf-8",
-        )
-    except OSError:
-        pass
 
 
 class FlandoraRuntimeState:

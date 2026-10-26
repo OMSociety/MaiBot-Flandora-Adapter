@@ -13,13 +13,12 @@ from maibot_sdk import Field, PluginConfigBase
 from pydantic import field_validator
 
 from .constants import (
+    BYTES_PER_MB,
     DEFAULT_ACTION_TIMEOUT_SEC,
-    DEFAULT_ATTACHMENT_MAX_BYTES,
-    DEFAULT_CONNECTION_ID,
+    DEFAULT_ATTACHMENT_MAX_MB,
     DEFAULT_HEARTBEAT_INTERVAL_SEC,
     DEFAULT_MAX_RECONNECT_DELAY_SEC,
     DEFAULT_RECONNECT_DELAY_SEC,
-    DEFAULT_SELF_ID_CACHE_PATH,
     DEFAULT_SERVER_HOST,
     DEFAULT_SERVER_PORT,
     SUPPORTED_CONFIG_VERSION,
@@ -168,15 +167,6 @@ class FlandoraClientConfig(PluginConfigBase):
             order=2,
         ),
     )
-    connection_id: str = Field(
-        default=DEFAULT_CONNECTION_ID,
-        description="当前连接的标识，会上报给宿主作为会话作用域。",
-        json_schema_extra=_ui(
-            label="连接标识",
-            hint="多开 Flandora 时用于区分不同连接；单机单连接保持默认即可。",
-            order=3,
-        ),
-    )
     reconnect_delay_sec: float = Field(
         default=DEFAULT_RECONNECT_DELAY_SEC,
         description="首次重连等待秒数。",
@@ -216,22 +206,13 @@ class FlandoraClientConfig(PluginConfigBase):
             order=7,
         ),
     )
-    attachment_max_bytes: int = Field(
-        default=DEFAULT_ATTACHMENT_MAX_BYTES,
-        description="读取本机附件转 base64 的大小上限。",
+    attachment_max_mb: int = Field(
+        default=DEFAULT_ATTACHMENT_MAX_MB,
+        description="读取本机附件转 base64 的大小上限（MB）。",
         json_schema_extra=_ui(
-            label="附件大小上限",
-            hint="入站图片、语音、文件超过该字节数时只保留文本占位，避免占用过多内存。",
-            order=8,
-        ),
-    )
-    self_id_cache_path: str = Field(
-        default=DEFAULT_SELF_ID_CACHE_PATH,
-        description="self_id 兜底缓存文件路径，相对于插件数据目录。",
-        json_schema_extra=_ui(
-            label="账号缓存路径",
-            hint="连上后取到的机器人账号会写在这里，供重启后首次上报前兜底使用。",
-            order=9,
+            label="附件大小上限（MB）",
+            hint="入站图片、语音、文件超过该 MB 数时只保留文本占位，避免占用过多内存。",
+            order=7,
         ),
     )
 
@@ -259,7 +240,7 @@ class FlandoraClientConfig(PluginConfigBase):
 
         return _normalize_positive_int(value, DEFAULT_SERVER_PORT)
 
-    @field_validator("token", "connection_id", "self_id_cache_path", mode="before")
+    @field_validator("token", mode="before")
     @classmethod
     def _normalize_text(cls, value: Any) -> str:
         """文本字段去空白。"""
@@ -279,12 +260,12 @@ class FlandoraClientConfig(PluginConfigBase):
 
         return _normalize_positive_float(value, DEFAULT_RECONNECT_DELAY_SEC)
 
-    @field_validator("attachment_max_bytes", mode="before")
+    @field_validator("attachment_max_mb", mode="before")
     @classmethod
     def _normalize_attachment_limit(cls, value: Any) -> int:
-        """附件上限规整为正整数。"""
+        """附件上限规整为正整数（单位 MB）。"""
 
-        return _normalize_positive_int(value, DEFAULT_ATTACHMENT_MAX_BYTES)
+        return _normalize_positive_int(value, DEFAULT_ATTACHMENT_MAX_MB)
 
     def build_ws_uri(self) -> str:
         """构造连向 Flandora 的 WebSocket 地址。
@@ -299,10 +280,16 @@ class FlandoraClientConfig(PluginConfigBase):
             uri = f"{uri}?access_token={quote(self.token, safe='')}"
         return uri
 
-    def connection_signature(self) -> tuple[str, int, str, str]:
+    @property
+    def attachment_max_bytes(self) -> int:
+        """附件上限的字节数（配置项以 MB 为单位）。"""
+
+        return self.attachment_max_mb * BYTES_PER_MB
+
+    def connection_signature(self) -> tuple[str, int, str]:
         """返回决定是否需要重建连接的关键字段组合。"""
 
-        return (self.server, self.port, self.token, self.connection_id)
+        return (self.server, self.port, self.token)
 
 
 class FlandoraFilterConfig(PluginConfigBase):
