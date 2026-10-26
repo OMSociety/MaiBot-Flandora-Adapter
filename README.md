@@ -18,7 +18,7 @@ Flandora 把微信个人号暴露成一个 OneBot v11 服务端；本插件作�
 微信 ←→ Flandora ←─ WebSocket(OneBot v11) ─→ 本插件 ←→ MaiBot
 ```
 
-> **提示：** 本插件在 Flandora 上的定位与 AstrBot 的 `aiocqhttp` 适配器相同——都是「客户端主动连过去」。
+> **提示**：本插件在 Flandora 上的定位与 AstrBot 的 `aiocqhttp` 适配器相同——都是「客户端主动连过去」。
 > 采用这种接法时，Flandora 侧保持默认的单节点即可。
 
 ## Flandora 侧配置
@@ -59,7 +59,7 @@ Flandora 把微信个人号暴露成一个 OneBot v11 服务端；本插件作�
 | --- | --- |
 | MaiBot | 1.3.0 – 1.3.99 |
 | 插件 SDK | 2.7.0 – 2.99.99 |
-| Flandora | 任意已发布版本（OneBot v11，段格式为 `array`） |
+| Flandora | 当前版本（OneBot v11 服务端；`message` 事件带 `message_id` 与 `group_wxid`，段格式为 `array`） |
 | Python | 3.12 及以上（随麦麦运行环境，无需另装） |
 | 依赖 | `websockets >= 12.0`（宿主会按 `_manifest.json` 自动安装） |
 
@@ -148,7 +148,7 @@ Flandora 侧的 `ob_message_format` 请保持默认的 `array`——本插件的
 | --- | --- |
 | `text` | 原文发送（微信侧逐字投递并回读校验） |
 | `at` | 数字 ID 发真 @；其它形态记入失败详情 |
-| `image` / `emoji` | 内联字节或本机路径直接发送 |
+| `image` / `emoji` | 内联字节直接发送；本机路径按文件名到 Flandora 的附件目录里取件 |
 | `voice` | 以语音文件发送 |
 | `file` | 内联字节或本机路径直接发送 |
 | 合并转发 | 展开为 `[合并转发]` 段落文本后发送 |

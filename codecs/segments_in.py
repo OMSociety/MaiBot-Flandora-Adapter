@@ -311,13 +311,15 @@ def build_components(
 
         if kind == SEGMENT_REPLY:
             target_message_id = str(data.get("id") or "").strip()
-            if target_message_id:
+            if target_message_id and target_message_id != "0":
                 result.components.append(
                     {
                         "type": COMPONENT_REPLY,
                         "data": {"target_message_id": target_message_id},
                     }
                 )
+            else:
+                result.components.append(text_component(PLACEHOLDER_REPLY))
             continue
 
         if kind in (SEGMENT_FORWARD, SEGMENT_NODE, SEGMENT_NODES):

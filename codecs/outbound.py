@@ -24,13 +24,6 @@ class OutboundRequest:
     params: Dict[str, Any] = field(default_factory=dict)
     dropped: List[str] = field(default_factory=list)
 
-    @property
-    def segments(self) -> List[Dict[str, Any]]:
-        """本次要发送的段列表。"""
-
-        message = self.params.get("message")
-        return list(message) if isinstance(message, list) else []
-
 
 def _as_mapping(value: Any) -> Mapping[str, Any]:
     """把任意值安全规整为只读映射。"""
@@ -97,8 +90,8 @@ def resolve_target(
 def _numeric_id(raw_id: str, *, kind: str) -> int:
     """把 Flandora 的会话 ID 转成整数。
 
-    Flandora 的 ``user_id`` / ``group_id`` 是它自己分配的正整数；喂 wxid 或
-    其它字符串进去会被回 ``1406``，所以在本地就拦下来并把原因说清楚。
+    Flandora 的 ``user_id`` / ``group_id`` 是它自己分配的正整数，动作参数按整数下发；
+    这里在本地先把非整数拦下来，让失败原因落在适配器自己的错误信息里。
     """
 
     text = str(raw_id or "").strip()

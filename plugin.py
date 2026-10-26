@@ -41,11 +41,6 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         self._connection_signature: Optional[Tuple[str, int, str, str]] = None
         self._lifecycle_lock = asyncio.Lock()
 
-    def get_components(self) -> List[Dict[str, Any]]:
-        """返回本插件注册的组件。"""
-
-        return super().get_components()
-
     async def on_load(self) -> None:
         """插件加载：按配置决定是否连上 Flandora。"""
 
@@ -211,6 +206,7 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         """把新配置就地灌进运行中的运行时。"""
 
         runtime.settings = settings
+        runtime.transport.update_settings(settings.client)
         runtime.debug_logger.set_enabled(settings.debug.log_raw_events)
         runtime.router.update_settings(settings)
 

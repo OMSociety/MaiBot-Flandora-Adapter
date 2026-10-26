@@ -114,7 +114,6 @@ def build_message_dict(
 
     additional_config: Dict[str, Any] = {
         "at_bot": at_bot,
-        "is_mentioned": declared_mentioned,
         "flandora_wxid": str(sender.get("wxid") or "").strip(),
         "flandora_group_wxid": str(payload.get("group_wxid") or "").strip(),
     }

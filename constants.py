@@ -2,9 +2,6 @@
 
 from __future__ import annotations
 
-APP_NAME = "flandora-adapter"
-PLUGIN_ID = "omsociety.flandora-adapter"
-
 FLANDORA_GATEWAY_NAME = "flandora_gateway"
 FLANDORA_PLATFORM = "wechat"
 FLANDORA_PROTOCOL = "flandora"
@@ -23,15 +20,6 @@ DEFAULT_ACTION_TIMEOUT_SEC = 15.0
 DEFAULT_ATTACHMENT_MAX_MB = 20
 BYTES_PER_MB = 1024 * 1024
 
-# OneBot v11 retcode：与 Flandora flandora/action_catalog.py 的取值保持一致。
-RETCODE_OK = 0
-RETCODE_BAD_PARAM = 1400
-RETCODE_AUTH_FAILED = 1401
-RETCODE_NOT_IMPLEMENTED = 1404
-RETCODE_UNSUPPORTED = 1405
-RETCODE_NOT_FOUND = 1406
-RETCODE_INTERNAL = 1500
-
 # 入站事件类型
 POST_TYPE_MESSAGE = "message"
 POST_TYPE_MESSAGE_SENT = "message_sent"
@@ -43,10 +31,6 @@ NOTICE_GROUP_RECALL = "group_recall"
 NOTICE_FRIEND_RECALL = "friend_recall"
 NOTICE_NOTIFY = "notify"
 NOTIFY_POKE = "poke"
-
-# meta_event 类型
-META_HEARTBEAT = "heartbeat"
-META_LIFECYCLE = "lifecycle"
 
 # 段类型
 SEGMENT_TEXT = "text"

@@ -113,14 +113,10 @@ class FlandoraTransport:
 
         self._fail_pending("连接已关闭")
 
-    def request_reconnect(self) -> None:
-        """请求主动断开当前连接，由后台任务负责重连。"""
+    def update_settings(self, settings: "FlandoraClientConfig") -> None:
+        """就地替换连接参数，供配置热更新使用（调用方负责判断是否需要重建连接）。"""
 
-        ws = self._ws
-        if ws is None:
-            return
-        self._logger.info("主动重建与 Flandora 的连接")
-        asyncio.create_task(self._close_quietly(ws, "reconnect requested"))
+        self._settings = settings
 
     async def call_action(
         self,
@@ -200,7 +196,10 @@ class FlandoraTransport:
         """建立一次连接并读取消息，直到连接结束。"""
 
         uri = self._settings.build_ws_uri()
-        self._logger.info(f"正在连接 Flandora：{uri}")
+        token_note = "带访问令牌" if self._settings.token else "无访问令牌"
+        self._logger.info(
+            f"正在连接 Flandora：ws://{self._settings.server}:{self._settings.port}/（{token_note}）"
+        )
 
         async with websockets.connect(
             uri,

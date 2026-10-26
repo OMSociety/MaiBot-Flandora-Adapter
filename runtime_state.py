@@ -34,12 +34,6 @@ class FlandoraRuntimeState:
 
         return self._account_id
 
-    @property
-    def ready(self) -> bool:
-        """当前是否已向宿主上报就绪。"""
-
-        return self._ready
-
     async def report_connected(
         self,
         gateway: Any,
@@ -122,8 +116,3 @@ class FlandoraRuntimeState:
         if reason:
             self._logger.info(f"消息网关已断开（{reason}）")
         return bool(accepted)
-
-    def forget(self) -> None:
-        """清空本地记录的就绪状态（用于配置变更后重新上报）。"""
-
-        self._ready = False

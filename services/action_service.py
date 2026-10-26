@@ -7,7 +7,7 @@ from __future__ import annotations
 
 from typing import Any, Dict, Optional
 
-from ..transport import FlandoraActionError, FlandoraTransport
+from ..transport import FlandoraTransport
 
 _STATUS_OK = "ok"
 
@@ -57,13 +57,6 @@ def action_response_error(response: Any) -> str:
     return "Flandora 未说明失败原因"
 
 
-def action_response_data(response: Dict[str, Any]) -> Dict[str, Any]:
-    """取出响应里的 ``data`` 字段。"""
-
-    data = response.get("data")
-    return data if isinstance(data, dict) else {}
-
-
 class FlandoraActionService:
     """对 Flandora 动作接口的轻封装。"""
 
@@ -100,28 +93,3 @@ class FlandoraActionService:
         """调用一次动作并返回原始响应。"""
 
         return await self._transport.call_action(action, params, timeout=timeout)
-
-    async def call_ok(
-        self,
-        action: str,
-        params: Optional[Dict[str, Any]] = None,
-        *,
-        timeout: Optional[float] = None,
-    ) -> Dict[str, Any]:
-        """调用一次动作，失败时抛 :class:`FlandoraActionError`。
-
-        Returns:
-            Dict[str, Any]: 成功时的原始响应。
-
-        Raises:
-            FlandoraActionError: 响应表示失败时。
-        """
-
-        response = await self.call(action, params, timeout=timeout)
-        if not is_action_response_ok(response):
-            raise FlandoraActionError(
-                action,
-                action_response_error(response),
-                retcode=action_response_retcode(response),
-            )
-        return response

@@ -32,6 +32,7 @@ def _feature_string(payload: Mapping[str, Any]) -> str:
     fields = (
         str(payload.get("notice_type") or "").strip().lower(),
         str(payload.get("sub_type") or "").strip().lower(),
+        str(payload.get("time") or "").strip(),
         str(payload.get("user_id") or "").strip(),
         str(payload.get("operator_id") or "").strip(),
         str(payload.get("group_id") or "").strip(),

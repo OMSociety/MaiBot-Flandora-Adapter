@@ -26,12 +26,6 @@ class FlandoraDebugLogger:
         self._logger = logger
         self._enabled = bool(enabled)
 
-    @property
-    def enabled(self) -> bool:
-        """当前是否开启原始事件记录。"""
-
-        return self._enabled
-
     def set_enabled(self, enabled: bool) -> None:
         """更新开关状态。"""
 
@@ -52,10 +46,3 @@ class FlandoraDebugLogger:
             text = f"{text[:_MAX_PREVIEW_CHARS]}...(已截断，原文共 {len(text)} 字符)"
 
         self._logger.info(f"[Flandora] 原始事件 {text}")
-
-    def notice(self, message: str) -> None:
-        """记录一条调试说明。"""
-
-        if not self._enabled:
-            return
-        self._logger.info(f"[Flandora] {message}")

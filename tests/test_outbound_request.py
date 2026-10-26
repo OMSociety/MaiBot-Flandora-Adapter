@@ -102,7 +102,7 @@ def test_dropped_segments_are_reported(logger):
         logger=logger,
     )
 
-    assert request.segments == [{"type": "text", "data": {"text": "正文"}}]
+    assert request.params["message"] == [{"type": "text", "data": {"text": "正文"}}]
     assert request.dropped
 
 

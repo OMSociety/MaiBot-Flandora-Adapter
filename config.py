@@ -10,7 +10,7 @@ from typing import Any, ClassVar, Dict, List
 from urllib.parse import quote
 
 from maibot_sdk import Field, PluginConfigBase
-from pydantic import field_validator
+from pydantic import ValidationInfo, field_validator
 
 from .constants import (
     BYTES_PER_MB,
@@ -23,6 +23,13 @@ from .constants import (
     DEFAULT_SERVER_PORT,
     SUPPORTED_CONFIG_VERSION,
 )
+
+_DELAY_DEFAULTS: Dict[str, float] = {
+    "reconnect_delay_sec": DEFAULT_RECONNECT_DELAY_SEC,
+    "max_reconnect_delay_sec": DEFAULT_MAX_RECONNECT_DELAY_SEC,
+    "heartbeat_interval_sec": DEFAULT_HEARTBEAT_INTERVAL_SEC,
+    "action_timeout_sec": DEFAULT_ACTION_TIMEOUT_SEC,
+}
 
 
 def _ui(*, label: str, hint: str, order: int, **extra: Any) -> Dict[str, Any]:
@@ -255,10 +262,10 @@ class FlandoraClientConfig(PluginConfigBase):
         mode="before",
     )
     @classmethod
-    def _normalize_delay(cls, value: Any) -> float:
-        """时延字段规整为正浮点数。"""
+    def _normalize_delay(cls, value: Any, info: ValidationInfo) -> float:
+        """时延字段规整为正浮点数；非法值回落到该字段自己的默认值。"""
 
-        return _normalize_positive_float(value, DEFAULT_RECONNECT_DELAY_SEC)
+        return _normalize_positive_float(value, _DELAY_DEFAULTS[info.field_name])
 
     @field_validator("attachment_max_mb", mode="before")
     @classmethod

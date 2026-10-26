@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import importlib
-import logging
 import sys
 import tempfile
 import types
@@ -67,7 +66,7 @@ class _StubRouter:
 
 class _StubRuntimeState:
     def __init__(self) -> None:
-        self.account_id = "1933132086"
+        self.account_id = "10086"
         self.ready = False
         self.disconnect_reasons: list[str] = []
 
@@ -80,6 +79,14 @@ class _StubActionService:
     async def call(self, action: str, params: dict | None = None, *, timeout=None):
         self.calls.append((action, params or {}))
         return self.response
+
+
+class _StubTransport:
+    def __init__(self) -> None:
+        self.settings_updates: list[object] = []
+
+    def update_settings(self, settings: object) -> None:
+        self.settings_updates.append(settings)
 
 
 class StubRuntime:
@@ -96,6 +103,7 @@ class StubRuntime:
         self.router = _StubRouter()
         self.runtime_state = _StubRuntimeState()
         self.action_service = _StubActionService(response)
+        self.transport = _StubTransport()
 
     def start(self) -> None:
         self.started = True
@@ -238,7 +246,7 @@ def test_gateway_handler_without_connection_reports_failure():
             "message_id": "1",
             "platform": "wechat",
             "message_info": {
-                "user_info": {"user_id": "1933132086", "user_nickname": "bot"},
+                "user_info": {"user_id": "10086", "user_nickname": "bot"},
                 "group_info": {"group_id": "88", "group_name": "群"},
             },
             "raw_message": [{"type": "text", "data": "你好"}],
@@ -266,7 +274,7 @@ def test_gateway_handler_sends_and_echoes_message_id():
                 "message_id": "1",
                 "platform": "wechat",
                 "message_info": {
-                    "user_info": {"user_id": "1933132086", "user_nickname": "bot"},
+                    "user_info": {"user_id": "10086", "user_nickname": "bot"},
                     "group_info": {"group_id": "88", "group_name": "群"},
                 },
                 "raw_message": [{"type": "text", "data": "你好"}],
@@ -308,7 +316,7 @@ def test_gateway_handler_reports_flandora_rejection():
                 "message_id": "1",
                 "platform": "wechat",
                 "message_info": {
-                    "user_info": {"user_id": "1933132086", "user_nickname": "bot"},
+                    "user_info": {"user_id": "10086", "user_nickname": "bot"},
                     "group_info": {"group_id": "88", "group_name": "群"},
                 },
                 "raw_message": [{"type": "text", "data": "你好"}],
@@ -331,4 +339,3 @@ def test_plugin_has_no_undeclared_logger_attribute():
     assert not hasattr(plugin_mod_plugin, "logger"), (
         "MaiBotPlugin 没有 logger 属性，日志一律走 self.ctx.logger"
     )
-    assert isinstance(logging.getLogger("plugin.omsociety.flandora-adapter"), logging.Logger)

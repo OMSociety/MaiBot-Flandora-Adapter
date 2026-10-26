@@ -61,7 +61,7 @@ def test_version_is_strict_three_part(manifest: dict):
 
 def test_declares_adapter_type_and_license(manifest: dict):
     assert manifest.get("plugin_type") == "adapter"
-    assert manifest["license"] == "AGPL-v3.0-or-later"
+    assert manifest["license"] == "AGPL-3.0-or-later"
 
 
 def test_capabilities_stay_empty(manifest: dict):

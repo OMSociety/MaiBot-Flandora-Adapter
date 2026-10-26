@@ -22,6 +22,9 @@ class StubSettings:
     reconnect_delay_sec = 0.05
     max_reconnect_delay_sec = 0.1
     heartbeat_interval_sec = 30.0
+    server = "127.0.0.1"
+    port = 7999
+    token = ""
 
     def __init__(self, uri: str = "ws://127.0.0.1:7999/") -> None:
         self._uri = uri

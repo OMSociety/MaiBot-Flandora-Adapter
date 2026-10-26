@@ -53,7 +53,6 @@ def test_additional_config_carries_wxids_and_mention_flags(logger):
 
     assert built["message_info"]["additional_config"] == {
         "at_bot": True,
-        "is_mentioned": True,
         "flandora_wxid": "wxid_sender",
         "flandora_group_wxid": "123456@chatroom",
     }
