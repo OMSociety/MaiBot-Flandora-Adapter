@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "id": "omsociety.flandora-adapter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "name": "Flandora 微信适配器",
   "description": "通过 OneBot v11 正向 WebSocket 把 Flandora 桥接的微信个人号（群聊与私聊）接入 MaiBot。",
   "author": {

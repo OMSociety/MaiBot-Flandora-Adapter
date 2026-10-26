@@ -54,10 +54,10 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
 
         settings = self._settings()
         if not settings.plugin.enabled:
-            self.logger.info("适配器已在配置中禁用，不建立连接")
+            self.ctx.logger.info("适配器已在配置中禁用，不建立连接")
             return
         if not settings.should_connect():
-            self.logger.warning("适配器缺少可用的服务端地址或端口，未建立连接")
+            self.ctx.logger.warning("适配器缺少可用的服务端地址或端口，未建立连接")
             return
         await self._start_runtime(settings)
 
@@ -77,18 +77,18 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         settings = self._settings()
 
         if not settings.plugin.enabled or not settings.should_connect():
-            self.logger.info("适配器已关闭或配置不完整，断开现有连接")
+            self.ctx.logger.info("适配器已关闭或配置不完整，断开现有连接")
             await self._stop_runtime()
             return
 
         signature = settings.client.connection_signature()
         if self._runtime is None or signature != self._connection_signature:
-            self.logger.info("连接参数已变化，重建与 Flandora 的连接")
+            self.ctx.logger.info("连接参数已变化，重建与 Flandora 的连接")
             await self._restart_runtime(settings)
             return
 
         self._apply_settings(self._runtime, settings)
-        self.logger.info("适配器配置已热更新")
+        self.ctx.logger.info("适配器配置已热更新")
 
     @MessageGateway(
         name=FLANDORA_GATEWAY_NAME,
@@ -114,7 +114,7 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         try:
             request = build_outbound_request(
                 message,
-                logger=self.logger,
+                logger=self.ctx.logger,
                 route=route,
                 self_id=self._current_account_id(),
             )
@@ -137,13 +137,13 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
                 "metadata": {"action": request.action, "retcode": exc.retcode},
             }
         except Exception as exc:  # 连接层意外异常：如实回报，不吞掉
-            self.logger.warning(f"发送消息时发生未预期的错误：{exc}")
+            self.ctx.logger.warning(f"发送消息时发生未预期的错误：{exc}")
             return {"success": False, "error": str(exc), "metadata": {"action": request.action}}
 
         if not is_action_response_ok(response):
             error = action_response_error(response)
             retcode = action_response_retcode(response)
-            self.logger.warning(f"Flandora 拒绝发送：{error}（retcode={retcode}）")
+            self.ctx.logger.warning(f"Flandora 拒绝发送：{error}（retcode={retcode}）")
             return {
                 "success": False,
                 "error": error,
@@ -157,7 +157,9 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         failed_segments = data.get("failed_segments") or 0
         failed_details = data.get("failed_details") or []
         if failed_segments:
-            self.logger.warning(f"部分消息段未发出：{failed_segments} 段，原因：{failed_details}")
+            self.ctx.logger.warning(
+                f"部分消息段未发出：{failed_segments} 段，原因：{failed_details}"
+            )
 
         adapter_callbacks: List[Dict[str, Any]] = []
         if (
@@ -231,20 +233,20 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
             if self._runtime is not None:
                 return
 
-            if not settings.validate_runtime_config(self.logger):
-                self.logger.warning("适配器配置未通过启动校验，未建立连接")
+            if not settings.validate_runtime_config(self.ctx.logger):
+                self.ctx.logger.warning("适配器配置未通过启动校验，未建立连接")
                 return
 
             runtime = build_runtime(
                 settings=settings,
                 gateway=self.ctx.gateway,
-                logger=self.logger,
+                logger=self.ctx.logger,
                 self_id_cache_path=self._self_id_cache_path(),
             )
             runtime.start()
             self._runtime = runtime
             self._connection_signature = settings.client.connection_signature()
-            self.logger.info(
+            self.ctx.logger.info(
                 f"已启动 Flandora 适配器：server={settings.client.server} "
                 f"port={settings.client.port} scope={settings.client.connection_id}"
             )
@@ -259,7 +261,7 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
             if runtime is None:
                 return
             await runtime.stop()
-            self.logger.info("Flandora 适配器已停止")
+            self.ctx.logger.info("Flandora 适配器已停止")
 
     async def _restart_runtime(self, settings: FlandoraPluginSettings) -> None:
         """按新配置重建运行时。"""
