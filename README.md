@@ -21,6 +21,38 @@ Flandora 把微信个人号暴露成一个 OneBot v11 服务端；本插件作�
 > **提示：** 本插件在 Flandora 上的定位与 AstrBot 的 `aiocqhttp` 适配器相同——都是「客户端主动连过去」。
 > 采用这种接法时，Flandora 侧保持默认的单节点即可。
 
+## Flandora 侧配置
+
+本插件连的是 Flandora 的 OneBot v11 **服务端入口**（`type = "ws_server"`），地址取插件配置里的
+`server` / `port` / `token`。在 Flandora 控制台（默认 `http://127.0.0.1:4950`）里把三项对上即可：
+
+| Flandora 配置项 | 默认值 | 与本插件的关系 |
+| --- | --- | --- |
+| `ob_server_host` | `127.0.0.1` | 对应插件的 `server`；同机部署保持回环 |
+| `ob_server_port` | `7999` | 对应插件的 `port` |
+| `ob_server_token` | 空 | 对应插件的 `token`；两边要么都留空，要么填同一串字符 |
+| `ob_message_format` | `array` | 保持默认，本插件的段编解码按 `array` 实现 |
+| `ob_networks` | 空 | 留空即可 |
+
+`ob_networks` 留空时，Flandora 按上面三项自动起一个名为 `default` 的服务端入口，启动日志里会出现：
+
+```
+[OB11] WS 服务端 default 监听 127.0.0.1:7999/（role=universal，token=无）
+```
+
+若 `ob_networks` 里已经写了自定义入口，就在其中保留一个 `type = "ws_server"` 的入口：
+
+- `port` 必填，`host` 不填按 `127.0.0.1`；
+- `role` 填 `universal`（不填即 `universal`）：`api` 只处理动作请求、`event` 只推事件，本插件收发两个方向都用；
+- `path` 不填即 `/`，与插件的连接地址 `ws://<host>:<port>/` 一致；填了别的路径时两者要相同。
+
+反向 WS（`type = "ws_client"`）是「Flandora 主动去连框架的 WS 服务端」的入口，供 AstrBot 的
+`aiocqhttp` 这类自己开服务端的框架使用；本插件是主动连过来的一方，不需要它。
+
+收件方向还依赖 Flandora 能读到微信本地库。若它的日志里反复出现
+`本地库收件源启动失败：找不到微信口令文件 ...\data\wx_key.dat`，说明取钥还没做：这时连接能建立、
+发消息也正常，但收不到微信里的消息。到控制台走一遍「取钥向导」即可，之后 Flandora 会自行恢复。
+
 ## 环境要求
 
 | 项 | 要求 |
@@ -43,7 +75,7 @@ Flandora 侧的 `ob_message_format` 请保持默认的 `array`——本插件的
    ```
 
 2. 启动或重载麦麦，插件会在插件列表里以「Flandora 微信适配器」出现。
-3. 在插件配置面板确认 Flandora 的监听地址与端口（默认 `127.0.0.1:7999`）。
+3. 按上一节把 Flandora 侧的三项对上，并在插件配置面板确认 Flandora 的监听地址与端口（默认 `127.0.0.1:7999`）。
 4. 确认 Flandora 已启动、微信已登录。连接建立后，插件会向麦麦上报机器人账号，日志里会出现
    `消息网关已激活路由：platform=wechat account_id=... scope=...`。
 
