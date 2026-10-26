@@ -1,0 +1,146 @@
+# MaiBot-Flandora-Adapter
+
+Flandora（微信个人号 OneBot v11 桥接器）与 MaiBot（麦麦）之间的消息网关适配器。
+装好之后，麦麦可以在微信里收发群聊与私聊消息。
+
+## 工作原理
+
+Flandora 把微信个人号暴露成一个 OneBot v11 服务端；本插件作为 WebSocket 客户端连上去，
+把 OneBot 事件翻译成麦麦的消息网关事件，再把麦麦的回复翻译成 OneBot 动作请求发回去。
+
+| 角色 | 职责 |
+| --- | --- |
+| Flandora | 读微信本地库收消息、走 Windows UI 自动化发消息、维护 wxid 与整数 ID 的映射 |
+| 本插件 | 事件与消息段的双向翻译、连接维护、账号上报 |
+| MaiBot | 会话管理、上下文与人格、决定回不回以及回什么 |
+
+```
+微信 ←→ Flandora ←─ WebSocket(OneBot v11) ─→ 本插件 ←→ MaiBot
+```
+
+> **提示：** 本插件在 Flandora 上的定位与 AstrBot 的 `aiocqhttp` 适配器相同——都是「客户端主动连过去」。
+> 如果你更希望由 Flandora 反连，需要在 Flandora 侧另配一个 `ws_client` 节点，本插件不支持这种接法。
+
+## 环境要求
+
+| 项 | 要求 |
+| --- | --- |
+| MaiBot | 1.3.0 – 1.3.99 |
+| 插件 SDK | 2.7.0 – 2.99.99 |
+| Flandora | 任意已发布版本（OneBot v11，段格式为 `array`） |
+| Python | 3.12 及以上（随麦麦运行环境，无需另装） |
+| 依赖 | `websockets >= 12.0`（宿主会按 `_manifest.json` 自动安装） |
+
+Flandora 侧的 `ob_message_format` 保持默认的 `array`；改成 `string` 会导致消息段无法解析。
+
+## 安装
+
+1. 把整个插件目录放到麦麦的插件目录下，目录名建议 `flandora-adapter`：
+
+   ```
+   <麦麦目录>/plugins/flandora-adapter/
+   ```
+
+2. 启动或重载麦麦，插件会在插件列表里以「Flandora 微信适配器」出现。
+3. 在插件配置面板确认 Flandora 的监听地址与端口（默认 `127.0.0.1:7999`）。
+4. 确认 Flandora 已启动、微信已登录。连接建立后，插件会向麦麦上报机器人账号，日志里会出现
+   `消息网关已激活路由：platform=wechat account_id=... scope=...`。
+
+## 配置
+
+配置分五节，全部有默认值，通常只需要改 `[client]`。
+
+### `[plugin]`
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `enabled` | `true` | 关掉之后插件不建立连接，也不上报状态 |
+| `config_version` | `1.0.0` | 配置结构版本，由插件维护，不要手改 |
+
+### `[client]`
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `server` | `127.0.0.1` | Flandora 的 OneBot 服务端地址；填 `ws://` 前缀也会被自动剥掉 |
+| `port` | `7999` | Flandora 的 OneBot 服务端端口 |
+| `token` | 空 | 与 Flandora 的 `ob_server_token` 一致；非空时以 `?access_token=` 附在连接地址上 |
+| `connection_id` | `flandora_default` | 这条连接的标识，会作为会话的 `scope` 上报给麦麦 |
+| `reconnect_delay_sec` | `5.0` | 断线后的初始重连间隔 |
+| `max_reconnect_delay_sec` | `60.0` | 重连间隔退避上限 |
+| `heartbeat_interval_sec` | `30.0` | 空闲阈值：超过该值两倍没有任何事件就判定链路已死并主动重连 |
+| `action_timeout_sec` | `15.0` | 单个动作请求的等待上限 |
+| `attachment_max_bytes` | `20971520` | 单个附件内联上限（20 MiB）；超过则退化为占位文本，不会中断整条消息 |
+| `self_id_cache_path` | `data/flandora_self_id.json` | 机器人账号缓存，连不上时用来兜底 |
+
+### `[filters]`
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `ignore_self_message` | `true` | 忽略自己在微信客户端里手发、且与麦麦发件重合的消息，避免麦麦自问自答 |
+| `ban_user_id` | 空 | 不接收这些用户的消息；可填整数 ID 或 wxid |
+| `ban_group_id` | 空 | 不接收这些群的消息；可填整数 ID 或群 wxid（`xxx@chatroom`） |
+
+### `[notice]`
+
+撤回与戳一戳的入站通知开关，三项默认全开：
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `enable_group_recall` | `true` | 群成员撤回消息 |
+| `enable_friend_recall` | `true` | 好友撤回消息 |
+| `enable_poke` | `true` | 戳一戳 |
+
+### `[debug]`
+
+| 字段 | 默认值 | 说明 |
+| --- | --- | --- |
+| `log_raw_events` | `false` | 把 Flandora 推送的原始事件写进日志（超长会截断），排查格式问题时才开 |
+
+## 支持的消息段
+
+**入站（微信 → 麦麦）**
+
+| OneBot 段 | 处理方式 |
+| --- | --- |
+| `text` | 原文传入 |
+| `at` | 转成麦麦的 `at` 段，并据此置位「是否 @ 了机器人」 |
+| `image` / `emoji` | 解码或读盘后作为图片传入，同时计算哈希 |
+| `face` | 转成文本 `[表情 id]` |
+| `record` | 转成麦麦的语音段 |
+| `file` | 未超上限时以文件段传入（含文件名与内容） |
+| `reply` | 以引用段传入，携带被引消息的 `message_id` |
+| `video`、合并转发、其它 | 转成占位文本，不中断整条消息 |
+
+**出站（麦麦 → 微信）**
+
+| 麦麦段 | 处理方式 |
+| --- | --- |
+| `text` | 原文发送（微信侧逐字投递并回读校验） |
+| `at` | 数字 ID 时发真 @；非数字 ID 时跳过并记入失败详情 |
+| `image` / `emoji` | 内联字节或本机路径直接发送 |
+| `voice` | 以语音文件发送 |
+| `file` | 内联字节或本机路径直接发送 |
+| 合并转发 | 展开为 `[合并转发]` 段落文本后发送 |
+
+出站目标（群或私聊）取自宿主下发的目标信息，必须是 Flandora 分配过的整数 ID；
+拿不到数字 ID 时该条消息直接失败，不会退化成「发给某人」的猜测。
+
+## 开发与测试
+
+```powershell
+python -m ruff check .
+python -m ruff format --check .
+python -m pytest tests -q
+python -m compileall -q .
+```
+
+测试不依赖麦麦运行环境；只有一个用例需要 `maibot_sdk` 可用（不可用时会跳过）。
+设计与两份契约的完整说明见 [`docs/design.md`](docs/design.md)。
+
+## 许可证与致谢
+
+本项目以 AGPL-3.0-or-later 发布，全文见 [`LICENSE`](LICENSE)。
+
+实现过程中参考了同为麦麦适配器的
+[MaiBot-SnowLuma-Adapter](https://github.com/Mai-with-u/MaiBot-SnowLuma-Adapter)（GPL-3.0-or-later）的
+插件骨架、配置写法与消息段编解码取舍。

@@ -1,0 +1,20 @@
+[project]
+name = "maibot-flandora-adapter"
+version = "1.0.0"
+description = "Flandora 微信桥接器与 MaiBot 之间的消息网关适配器"
+requires-python = ">=3.12"
+license = "AGPL-3.0-or-later"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+exclude = [".git", "__pycache__", "data"]
+
+[tool.ruff.lint]
+# 只启用确定性的正确性与整洁性规则；类型注记风格沿用宿主插件生态的
+# Dict / Optional 写法（麦麦插件普遍如此），不启用 UP 强制现代化。
+select = ["E", "F", "W", "I"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q"
