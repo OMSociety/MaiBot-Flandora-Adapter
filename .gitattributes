@@ -1,0 +1,8 @@
+# 统一以 LF 存进仓库，避免 Windows 上的换行符往返改动
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.webp binary
+*.gif binary

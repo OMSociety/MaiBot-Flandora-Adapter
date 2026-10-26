@@ -10,11 +10,12 @@ import asyncio
 import contextlib
 import json
 import time
-from typing import Any, Awaitable, Callable, Dict, Optional
+from typing import TYPE_CHECKING, Any, Awaitable, Callable, Dict, Optional
 
 import websockets
 
-from .config import FlandoraClientConfig
+if TYPE_CHECKING:  # 只用于注记：连接层只用到配置对象上的几个字段，不依赖宿主 SDK
+    from .config import FlandoraClientConfig
 
 EventHandler = Callable[[Dict[str, Any]], Awaitable[None]]
 ConnectedHook = Callable[[], Awaitable[None]]
@@ -49,7 +50,7 @@ class FlandoraTransport:
     def __init__(
         self,
         *,
-        settings: FlandoraClientConfig,
+        settings: "FlandoraClientConfig",
         logger: Any,
         on_event: EventHandler,
         on_connected: Optional[ConnectedHook] = None,
@@ -213,10 +214,14 @@ class FlandoraTransport:
             self._connected = True
             self._last_event_at = time.monotonic()
             watchdog = asyncio.create_task(self._watchdog(ws), name="flandora-watchdog")
+            # 上线钩子要调动作（取机器人账号、读状态、上报宿主），而动作的响应只能由下面的
+            # 读循环收。所以钩子必须另行起任务，不能在这里 await：await 会把读循环压在钩子
+            # 后面，钩子里的动作永远等不到响应，只能一路超时。
+            connected_hook = asyncio.create_task(
+                self._run_connected_hook(), name="flandora-on-connected"
+            )
             try:
                 self._logger.info("已连接 Flandora")
-                if self._on_connected is not None:
-                    await self._on_connected()
                 async for raw in ws:
                     self._last_event_at = time.monotonic()
                     await self._handle_raw(raw)
@@ -224,12 +229,28 @@ class FlandoraTransport:
                 watchdog.cancel()
                 with contextlib.suppress(asyncio.CancelledError, Exception):
                     await watchdog
+                if not connected_hook.done():
+                    connected_hook.cancel()
+                with contextlib.suppress(asyncio.CancelledError, Exception):
+                    await connected_hook
                 self._ws = None
                 self._connected = False
                 self._fail_pending("连接已断开")
                 if self._on_disconnected is not None:
                     with contextlib.suppress(Exception):
                         await self._on_disconnected("连接已断开")
+
+    async def _run_connected_hook(self) -> None:
+        """执行上线钩子；钩子失败只记日志，不拆连接。"""
+
+        if self._on_connected is None:
+            return
+        try:
+            await self._on_connected()
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 - 钩子失败不应中断链路
+            self._logger.warning(f"连接建立后的初始化回调失败：{exc}")
 
     async def _watchdog(self, ws: Any) -> None:
         """空闲看护：超过心跳阈值仍未收到任何事件时主动断开触发重连。"""

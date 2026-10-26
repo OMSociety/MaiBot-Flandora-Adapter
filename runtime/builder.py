@@ -79,6 +79,32 @@ class FlandoraRuntime:
             },
         )
 
+        await self._warn_if_flandora_degraded()
+
+    async def _warn_if_flandora_degraded(self) -> None:
+        """连接可用但 Flandora 侧没准备好时，给出能直接定位的提示。
+
+        收件侧要不要口令文件由 Flandora 自己决定（缺钥时它会每 10 秒重试），桥接侧能做的
+        只是如实提示并保持连接：发件方向通常是好的，收件方向要等它自己恢复。
+        """
+
+        try:
+            status = await self.query_service.get_status()
+        except FlandoraActionError as exc:
+            self.logger.warning(f"连接已建立但读取 Flandora 状态失败：{exc}")
+            return
+
+        if not status.get("online"):
+            self.logger.warning(
+                "Flandora 报告桥接未就绪（online=false）：消息可能收发不畅，"
+                "插件保持连接并等待其恢复"
+            )
+        if not status.get("receiver_ready"):
+            self.logger.warning(
+                "Flandora 的本地库收件源尚未就绪（receiver_ready=false）："
+                "当前收不到微信消息，需要在 Flandora 控制台完成取钥后才会自动恢复"
+            )
+
     async def handle_disconnected(self, reason: str = "") -> None:
         """连接断开后上报离线。"""
 
