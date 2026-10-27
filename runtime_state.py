@@ -56,7 +56,7 @@ class FlandoraRuntimeState:
 
         normalized_account = str(account_id or "").strip()
         if not normalized_account:
-            self._logger.warning("尚未取到 Flandora 的机器人账号，暂不上报运行状态")
+            self._logger.warning("机器人账号还没取到，等拿到后再上报运行状态")
             return False
 
         self._account_id = normalized_account

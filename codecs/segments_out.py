@@ -218,9 +218,9 @@ def build_outbound_segments(
             continue
 
         if kind == COMPONENT_REPLY:
-            # Flandora 不做引用发送：丢弃 reply 段只发正文，限制见 docs/wip.md
-            logger.debug("丢弃出站 reply 段（Flandora 不支持引用发送）")
-            result.dropped.append("reply:不支持引用发送")
+            # 引用关系由 Flandora 的发送侧维护：这里跳过 reply 段只发正文，限制见 docs/wip.md
+            logger.debug("出站 reply 段跳过（引用关系由 Flandora 的发送侧维护）")
+            result.dropped.append("reply:引用段跳过")
             continue
 
         if kind == COMPONENT_FORWARD:
@@ -228,7 +228,7 @@ def build_outbound_segments(
             result.dropped.append("forward:展开为文本")
             continue
 
-        logger.warning(f"不支持的出站组件类型，已跳过：{kind or '<空>'}")
-        result.dropped.append(f"{kind or '未知'}:不支持的类型")
+        logger.warning(f"未识别的出站组件类型，已跳过：{kind or '<空>'}")
+        result.dropped.append(f"{kind or '未知'}:未识别的类型")
 
     return result

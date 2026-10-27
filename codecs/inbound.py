@@ -78,7 +78,7 @@ def build_message_dict(
         Dict[str, Any]: 可直接交给 ``ctx.gateway.route_message`` 的字典。
 
     Raises:
-        ValueError: 消息号或发送者缺失时（这类载荷无法引用、去重与撤回，不合成假 ID）。
+        ValueError: 消息号或发送者缺失时（引用、去重与撤回都要靠这两个号，缺了直接报错而不合成）。
     """
 
     message_id = str(payload.get("message_id") or "").strip()

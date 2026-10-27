@@ -14,7 +14,6 @@
 </p>
 
 <p align="center">
-  <a href="#核心特性">核心特性</a> ·
   <a href="#快速开始">快速开始</a> ·
   <a href="#flandora-侧配置">Flandora 侧配置</a> ·
   <a href="#文档">文档</a> ·
@@ -65,6 +64,6 @@
 
 ## 鸣谢与致谢
 
-- [Flandora](https://github.com/OMSociety/Flandora)：面向微信 PC 客户端的 Windows 桥接程序,把微信个人号接成 OneBot v11 服务端
+- [Flandora](https://github.com/OMSociety/Flandora)：面向微信 PC 客户端的 Windows 桥接程序，把微信个人号接成 OneBot v11 服务端
 - [MaiBot-SnowLuma-Adapter](https://github.com/Mai-with-u/MaiBot-SnowLuma-Adapter)：麦麦 QQ 个人号适配器，插件骨架、配置写法与消息段编解码多有参考
 - [OneBot v11](https://github.com/botuniverse/onebot-11)：事件与动作遵循的协议规范

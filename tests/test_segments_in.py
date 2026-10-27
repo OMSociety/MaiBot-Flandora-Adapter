@@ -143,7 +143,7 @@ def test_forward_segment_degrades_to_placeholder(logger):
 def test_unknown_segment_is_kept_as_placeholder(logger):
     built = _build([{"type": "music", "data": {}}], logger=logger)
 
-    assert built.components == [{"type": "text", "data": "[不支持的段 music]"}]
+    assert built.components == [{"type": "text", "data": "[未识别的段 music]"}]
 
 
 def test_http_reference_is_never_downloaded(logger):

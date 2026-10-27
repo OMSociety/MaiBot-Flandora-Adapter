@@ -44,7 +44,7 @@ def action_response_error(response: Any) -> str:
     """从失败的响应里拼出可读的失败原因。"""
 
     if not isinstance(response, dict):
-        return "Flandora 返回了无法识别的响应"
+        return "Flandora 返回的响应缺少可识别的状态"
 
     for key in ("wording", "message", "msg", "error"):
         text = str(response.get(key) or "").strip()

@@ -85,7 +85,7 @@ def _normalize_string_list(value: Any) -> List[str]:
 
 
 def _matches_scoped_identifier(allowed_values: List[str], current_value: str) -> bool:
-    """兼容 ``platform:id`` 与纯 ID 两种写法。"""
+    """接受 ``platform:id`` 与纯 ID 两种写法。"""
 
     normalized_current = _normalize_string(current_value)
     if not normalized_current:
@@ -365,7 +365,7 @@ class FlandoraFilterConfig(PluginConfigBase):
         json_schema_extra=_ui(
             label="引用必回复",
             hint="微信里引用机器人自己发出的消息时，这条消息按被 @ 处理，回复概率拉满，"
-            "不再受回复调度的频率门控影响。关闭后只按真实的 @ 与提及判断。",
+            "不受回复调度的频率门控影响。关闭后按真实的 @ 与提及判断。",
             order=3,
         ),
     )

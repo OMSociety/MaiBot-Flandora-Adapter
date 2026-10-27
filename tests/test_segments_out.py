@@ -101,7 +101,7 @@ def test_reply_component_is_dropped(logger):
     built = _build([{"type": "reply", "data": {"target_message_id": "1"}}], logger=logger)
 
     assert built.segments == []
-    assert built.dropped == ["reply:不支持引用发送"]
+    assert built.dropped == ["reply:引用段跳过"]
 
 
 def test_forward_component_is_flattened_to_text(logger):
@@ -129,7 +129,7 @@ def test_unknown_component_is_dropped(logger):
     built = _build([{"type": "unknown", "data": {}}], logger=logger)
 
     assert built.segments == []
-    assert built.dropped == ["unknown:不支持的类型"]
+    assert built.dropped == ["unknown:未识别的类型"]
 
 
 def test_segments_preserve_order(logger):

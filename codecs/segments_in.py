@@ -115,10 +115,10 @@ def resolve_local_path(reference: str) -> Optional[Path]:
 def read_reference_bytes(reference: str) -> bytes:
     """读取段里引用的文件内容。
 
-    ``base64://`` 直接解码，``file://`` 与本机路径读盘，``http(s)://`` 一律不代下。
+    ``base64://`` 直接解码，``file://`` 与本机路径读盘；``http(s)://`` 由调用方先取件，这里返回空字节串。
 
     Returns:
-        bytes: 读到的字节；不支持的引用或读取失败返回空字节串。
+        bytes: 读到的字节；引用形态不认识或读取失败时返回空字节串。
     """
 
     text = str(reference or "").strip()
@@ -327,8 +327,8 @@ def build_components(
             result.components.append(text_component(PLACEHOLDER_FORWARD))
             continue
 
-        logger.warning(f"不支持的入站段类型：{kind or '<空>'}")
-        result.components.append(text_component(f"[不支持的段 {kind or '未知'}]"))
+        logger.warning(f"未识别的入站段类型：{kind or '<空>'}")
+        result.components.append(text_component(f"[未识别的段 {kind or '未知'}]"))
 
     return result
 

@@ -295,7 +295,7 @@ class FlandoraTransport:
         try:
             payload = json.loads(raw)
         except (TypeError, ValueError):
-            self._logger.warning("收到无法解析的报文，已忽略")
+            self._logger.warning("收到解析失败的报文，已忽略")
             return
 
         if not isinstance(payload, dict):
