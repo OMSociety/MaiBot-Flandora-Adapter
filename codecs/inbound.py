@@ -125,6 +125,11 @@ def build_message_dict(
         "flandora_wxid": str(sender.get("wxid") or "").strip(),
         "flandora_group_wxid": str(payload.get("group_wxid") or "").strip(),
     }
+    if quote_wakes and declared_reply_to_self and not at_bot:
+        # 宿主把 additional_config 里的数值型 is_mentioned 直接当回复概率用
+        # （src/chat/utils/utils.py:167-170）。「引用必回复」要的是必回，光靠
+        # 顶层 is_mentioned 只算加权，过不了回复调度的频率门控，所以这里把概率拉满。
+        additional_config["is_mentioned"] = 1.0
 
     message_info: Dict[str, Any] = {
         "user_info": {

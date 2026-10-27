@@ -361,11 +361,11 @@ class FlandoraFilterConfig(PluginConfigBase):
     )
     quote_wakes: bool = Field(
         default=True,
-        description="被引用时按被提及处理。",
+        description="被引用时按被提及处理并把回复概率拉满。",
         json_schema_extra=_ui(
             label="引用必回复",
-            hint="微信里引用机器人自己发出的消息时，这条消息按「被提及」处理，回复概率拉满。"
-            "关闭后只按真实的 @ 与提及判断。",
+            hint="微信里引用机器人自己发出的消息时，这条消息按「被提及」处理，回复概率拉满，"
+            "不再受回复调度的频率门控影响。关闭后只按真实的 @ 与提及判断。",
             order=3,
         ),
     )
