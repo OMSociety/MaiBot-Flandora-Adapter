@@ -81,6 +81,9 @@ plugin.py                                → 以上全部
   改任一侧都要同步 `tests/` 与 README 的两张段表。
 - 未知段类型转成占位文本并记 warning，整条消息照常送达。
 - 出站目标必须是 Flandora 分配过的整数 ID，非整数在本地拦下并给出原因。
+- 「被提及」有三个来源：段里的 `at` 指向自己、事件上的 `is_mentioned`、事件上的 `reply_to_self`。
+  前两者抬 `is_at`，`reply_to_self` 只抬 `is_mentioned`（被引不等于被 @）；三者都写进
+  `additional_config` 供宿主与下游判断。
 
 ## 测试
 

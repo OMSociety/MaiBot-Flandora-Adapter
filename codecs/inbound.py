@@ -112,9 +112,14 @@ def build_message_dict(
     # Flandora 在群消息上如实标记 is_mentioned；段里 @ 到自身也算一次
     declared_mentioned = bool(payload.get("is_mentioned"))
     at_bot = bool(built.at_bot or declared_mentioned)
+    # 被引的是机器人自己发的消息：Flandora 如实标记，正文与段不改写。
+    # 这算「在跟我说话」，但不算 @，所以只抬 is_mentioned、不抬 is_at。
+    declared_reply_to_self = bool(payload.get("reply_to_self"))
+    mentioned = bool(at_bot or declared_reply_to_self)
 
     additional_config: Dict[str, Any] = {
         "at_bot": at_bot,
+        "reply_to_self": declared_reply_to_self,
         "flandora_wxid": str(sender.get("wxid") or "").strip(),
         "flandora_group_wxid": str(payload.get("group_wxid") or "").strip(),
     }
@@ -138,7 +143,7 @@ def build_message_dict(
         "scope": None,
         "message_info": message_info,
         "raw_message": raw_message,
-        "is_mentioned": at_bot,
+        "is_mentioned": mentioned,
         "is_at": at_bot,
         "is_emoji": built.has_emoji,
         "is_picture": built.has_picture,

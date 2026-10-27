@@ -53,6 +53,7 @@ def test_additional_config_carries_wxids_and_mention_flags(logger):
 
     assert built["message_info"]["additional_config"] == {
         "at_bot": True,
+        "reply_to_self": False,
         "flandora_wxid": "wxid_sender",
         "flandora_group_wxid": "123456@chatroom",
     }
@@ -105,8 +106,8 @@ def test_raw_message_is_used_when_segment_list_is_empty(logger):
     assert built["processed_plain_text"] == "裸文本"
 
 
-def test_quote_of_bot_message_wakes_via_prepended_at(logger):
-    """Flandora 在被引消息属于机器人时，会在段数组最前面补一个 at 自己的段。"""
+def test_at_segment_targeting_bot_marks_mentioned(logger):
+    """段数组里有指向自己的 at 段时按被提及处理。"""
 
     built = inbound.build_message_dict(
         _group_event(
@@ -126,6 +127,51 @@ def test_quote_of_bot_message_wakes_via_prepended_at(logger):
     assert built["is_mentioned"] is True
     assert built["message_info"]["additional_config"]["at_bot"] is True
     assert built["raw_message"][1]["type"] == "reply"
+
+
+def test_quote_of_bot_message_wakes_via_reply_to_self(logger):
+    """被引的是机器人自己发的消息：Flandora 标 reply_to_self，正文与段不改写。"""
+
+    built = inbound.build_message_dict(
+        _group_event(
+            message=[
+                {"type": "reply", "data": {"id": 471}},
+                {"type": "text", "data": {"text": "测试引用"}},
+            ],
+            is_mentioned=False,
+            reply_to_self=True,
+        ),
+        self_id="1001",
+        attachment_max_bytes=1024,
+        logger=logger,
+    )
+
+    assert built["is_mentioned"] is True
+    assert built["is_at"] is False
+    additional = built["message_info"]["additional_config"]
+    assert additional["at_bot"] is False
+    assert additional["reply_to_self"] is True
+    assert built["processed_plain_text"] == "[回复]测试引用"
+
+
+def test_quote_of_other_message_does_not_wake(logger):
+    built = inbound.build_message_dict(
+        _group_event(
+            message=[
+                {"type": "reply", "data": {"id": 471}},
+                {"type": "text", "data": {"text": "别人说的话"}},
+            ],
+            is_mentioned=False,
+            reply_to_self=False,
+        ),
+        self_id="1001",
+        attachment_max_bytes=1024,
+        logger=logger,
+    )
+
+    assert built["is_mentioned"] is False
+    assert built["is_at"] is False
+    assert built["message_info"]["additional_config"]["reply_to_self"] is False
 
 
 def test_group_recall_notice_reports_message_id(logger):
