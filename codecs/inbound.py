@@ -118,7 +118,7 @@ def build_message_dict(
     declared_reply_to_self = bool(payload.get("reply_to_self"))
     quote_counts_as_at = bool(declared_reply_to_self and quote_wakes)
     at_bot = bool(built.at_bot or declared_mentioned or quote_counts_as_at)
-    mentioned = bool(at_bot or declared_reply_to_self)
+    mentioned = at_bot
 
     additional_config: Dict[str, Any] = {
         "at_bot": at_bot,
