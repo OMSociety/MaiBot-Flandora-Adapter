@@ -89,6 +89,16 @@ class _StubTransport:
         self.settings_updates.append(settings)
 
 
+class _StubTransport:
+    """顶替连接层，记录热更新时下发的配置。"""
+
+    def __init__(self) -> None:
+        self.applied = []
+
+    def update_settings(self, client_settings) -> None:
+        self.applied.append(client_settings)
+
+
 class StubRuntime:
     """顶替 build_runtime 的产物，记录生命周期调用。"""
 
