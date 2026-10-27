@@ -63,7 +63,7 @@ plugin.py                                → 以上全部
 
 - 五个节固定为 `plugin` / `client` / `filters` / `notice` / `debug`，新增字段必须有默认值
   （宿主用默认值构造配置模型，缺默认值会在加载期失败）。
-- 改字段名属于破坏性变更：同步 README 配置表、`tests/` 与宿主插件目录里的 `config.toml`，
+- 改字段名属于破坏性变更：同步 `docs/config.md`、`tests/` 与宿主插件目录里的 `config.toml`，
   并把 `config_version` 一并处理。
 - 附件大小对外以 MB 计量（`attachment_max_mb`），字节数由 `attachment_max_bytes` 属性换算。
 
@@ -78,7 +78,7 @@ plugin.py                                → 以上全部
 ## 消息段
 
 - 入站段映射在 `codecs/segments_in.py`，出站段映射在 `codecs/segments_out.py`；
-  改任一侧都要同步 `tests/` 与 README 的两张段表。
+  改任一侧都要同步 `tests/` 与 `docs/segments.md` 的两张段表。
 - 未知段类型转成占位文本并记 warning，整条消息照常送达。
 - 出站目标必须是 Flandora 分配过的整数 ID，非整数在本地拦下并给出原因。
 - 「被提及」有三个来源：段里的 `at` 指向自己、事件上的 `is_mentioned`、事件上的 `reply_to_self`。

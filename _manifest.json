@@ -20,7 +20,8 @@
     "icon": {
       "type": "local",
       "value": "assets/icon.svg",
-      "fallback": "message-circle"
+      "fallback": "message-circle",
+      "background": "#07C160"
     }
   },
   "host_application": {
