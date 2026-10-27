@@ -94,12 +94,12 @@ Flandora 侧的 `ob_message_format` 请保持默认的 `array`——本插件的
 
 | 字段 | 默认值 | 说明 |
 | --- | --- | --- |
-| `server` | `127.0.0.1` | Flandora 的 OneBot 服务端地址；填 `ws://` 前缀也会被自动剥掉 |
+| `server` | `127.0.0.1` | Flandora 的 OneBot 服务端地址；`ws://` 前缀与路径会被剥掉，端口请写在 `port` 里（两处不一致会报配置错误） |
 | `port` | `7999` | Flandora 的 OneBot 服务端端口 |
 | `token` | 空 | 与 Flandora 的 `ob_server_token` 一致；非空时以 `?access_token=` 附在连接地址上 |
 | `reconnect_delay_sec` | `5.0` | 断线后的初始重连间隔 |
 | `max_reconnect_delay_sec` | `60.0` | 重连间隔退避上限 |
-| `heartbeat_interval_sec` | `30.0` | 空闲阈值：超过该值两倍没有任何事件就判定链路已死并主动重连 |
+| `heartbeat_interval_sec` | `30.0` | 空闲阈值：超过该值两倍、再宽限 5 秒仍没有任何事件就判定链路已死并主动重连 |
 | `action_timeout_sec` | `15.0` | 单个动作请求的等待上限 |
 | `attachment_max_mb` | `20` | 单个附件内联上限（MB）；超限的附件退化为占位文本，其余段照常送达 |
 

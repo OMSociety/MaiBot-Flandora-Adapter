@@ -52,3 +52,13 @@ SEGMENT_NODES = "nodes"
 BASE64_URI_PREFIX = "base64://"
 FILE_URI_PREFIX = "file://"
 HTTP_PREFIXES = ("http://", "https://")
+
+# 宿主侧组件类型名（与 OneBot 的段名不同，出入站编解码共用一份）
+COMPONENT_TEXT = "text"
+COMPONENT_AT = "at"
+COMPONENT_IMAGE = "image"
+COMPONENT_EMOJI = "emoji"
+COMPONENT_VOICE = "voice"
+COMPONENT_FILE = "file"
+COMPONENT_REPLY = "reply"
+COMPONENT_FORWARD = "forward"

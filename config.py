@@ -10,7 +10,7 @@ from typing import Any, ClassVar, Dict, List
 from urllib.parse import quote
 
 from maibot_sdk import Field, PluginConfigBase
-from pydantic import ValidationInfo, field_validator
+from pydantic import ValidationInfo, field_validator, model_validator
 
 from .constants import (
     BYTES_PER_MB,
@@ -131,9 +131,15 @@ class FlandoraPluginOptions(PluginConfigBase):
     @field_validator("config_version", mode="before")
     @classmethod
     def _normalize_config_version(cls, value: Any) -> str:
-        """规范配置版本；留空时回退到当前支持版本。"""
+        """规范配置版本；写成空串视为配置错误。"""
 
-        return _normalize_string(value) or SUPPORTED_CONFIG_VERSION
+        normalized = _normalize_string(value)
+        if not normalized:
+            raise ValueError(
+                "配置里缺少 plugin.config_version；请写成当前插件要求的版本，"
+                f'例如 config_version = "{SUPPORTED_CONFIG_VERSION}"'
+            )
+        return normalized
 
     def should_connect(self) -> bool:
         """当前配置下是否应当建立连接。"""
@@ -198,7 +204,7 @@ class FlandoraClientConfig(PluginConfigBase):
         json_schema_extra=_ui(
             label="心跳空闲阈值",
             hint=(
-                "超过该秒数两倍没有任何事件时判定链路已死并主动重连；"
+                "超过该秒数两倍、再宽限 5 秒仍没有任何事件时判定链路已死并主动重连；"
                 "Flandora 默认每 30 秒发一次心跳。"
             ),
             order=6,
@@ -219,7 +225,7 @@ class FlandoraClientConfig(PluginConfigBase):
         json_schema_extra=_ui(
             label="附件大小上限（MB）",
             hint="入站图片、语音、文件超过该 MB 数时只保留文本占位，避免占用过多内存。",
-            order=7,
+            order=8,
         ),
     )
 
@@ -228,7 +234,7 @@ class FlandoraClientConfig(PluginConfigBase):
     def _normalize_server(cls, value: Any) -> str:
         """服务端地址留空时回退默认值。
 
-        地址里若带上了协议前缀或路径会被剥掉，只取主机名。
+        地址里若带上了协议前缀或路径会被剥掉；端口留给后置校验处理。
         """
 
         normalized = _normalize_string(value)
@@ -236,8 +242,6 @@ class FlandoraClientConfig(PluginConfigBase):
             if normalized.startswith(prefix):
                 normalized = normalized[len(prefix) :]
         normalized = normalized.split("/", 1)[0]
-        if ":" in normalized:
-            normalized = normalized.split(":", 1)[0]
         return normalized or DEFAULT_SERVER_HOST
 
     @field_validator("port", mode="before")
@@ -273,6 +277,29 @@ class FlandoraClientConfig(PluginConfigBase):
         """附件上限规整为正整数（单位 MB）。"""
 
         return _normalize_positive_int(value, DEFAULT_ATTACHMENT_MAX_MB)
+
+    @model_validator(mode="after")
+    def _resolve_embedded_port(self) -> "FlandoraClientConfig":
+        """把地址里夹带的端口与 ``port`` 字段对齐。
+
+        端口统一由 ``port`` 字段承载：地址里的端口与之一致就顺手剥掉，
+        不一致则直接判配置错误，避免按错误的端口去连。
+        """
+
+        host = self.server
+        if host.count(":") != 1:
+            return self
+        host_part, _, port_part = host.partition(":")
+        if not port_part.isdigit():
+            return self
+        embedded = int(port_part)
+        if embedded != self.port:
+            raise ValueError(
+                f"server 里带的端口 {embedded} 与 port 字段的 {self.port} 不一致；"
+                "端口请统一写在 port 字段里"
+            )
+        self.server = host_part
+        return self
 
     def build_ws_uri(self) -> str:
         """构造连向 Flandora 的 WebSocket 地址。

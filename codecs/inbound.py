@@ -34,7 +34,8 @@ def build_inbound_segments(
 ) -> InboundSegments:
     """把事件里的 ``message`` 段翻译成宿主组件。
 
-    段列表缺失或为空时，退回事件自带的 ``raw_message``（CQ 串）当纯文本。
+    段列表缺失或为空时，退回事件自带的 ``raw_message``（CQ 串）当纯文本；
+    两者都拿不到内容时返回空组件列表。
     """
 
     segments = payload.get("message")

@@ -40,14 +40,14 @@ def test_private_message_prefers_platform_io_target(logger):
     assert request.params["user_id"] == 7
 
 
-def test_private_message_falls_back_to_user_info(logger):
-    request = outbound.build_outbound_request(
-        _message([{"type": "text", "data": "回复"}], user_id="9"),
-        logger=logger,
-    )
+def test_private_message_without_target_is_rejected(logger):
+    """没有会话归属时报错，不按发送者兜底（那会是机器人自己）。"""
 
-    assert request.action == "send_private_msg"
-    assert request.params["user_id"] == 9
+    with pytest.raises(ValueError, match="缺少会话归属"):
+        outbound.build_outbound_request(
+            _message([{"type": "text", "data": "回复"}], user_id="9"),
+            logger=logger,
+        )
 
 
 def test_group_takes_precedence_over_user(logger):
@@ -62,7 +62,10 @@ def test_group_takes_precedence_over_user(logger):
 def test_non_numeric_target_is_rejected_with_reason(logger):
     with pytest.raises(ValueError) as excinfo:
         outbound.build_outbound_request(
-            _message([{"type": "text", "data": "回复"}], user_id="wxid_abc"),
+            _message(
+                [{"type": "text", "data": "回复"}],
+                additional={"platform_io_target_user_id": "wxid_abc"},
+            ),
             logger=logger,
         )
 

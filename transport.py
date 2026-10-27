@@ -335,8 +335,9 @@ class FlandoraTransport:
 
         if not self._pending:
             return
-        pending = list(self._pending.values())
+        pending = list(self._pending.items())
         self._pending.clear()
-        for future in pending:
+        for echo, future in pending:
             if not future.done():
-                future.set_exception(FlandoraActionError("", reason))
+                action = echo.split("#", 1)[0]
+                future.set_exception(FlandoraActionError(action, reason))

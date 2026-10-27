@@ -61,7 +61,6 @@ def resolve_target(
 
     message_info = _as_mapping(message.get("message_info"))
     group_info = _as_mapping(message_info.get("group_info"))
-    user_info = _as_mapping(message_info.get("user_info"))
     additional_config = _as_mapping(message_info.get("additional_config"))
     route_info = _as_mapping(route)
 
@@ -79,7 +78,6 @@ def resolve_target(
         additional_config.get("target_user_id"),
         route_info.get("user_id"),
         route_info.get("target_user_id"),
-        user_info.get("user_id"),
     )
     if user_id:
         return {"kind": "private", "id": user_id}
@@ -108,7 +106,6 @@ def build_outbound_request(
     *,
     logger: Any,
     route: Optional[Mapping[str, Any]] = None,
-    self_id: str = "",
 ) -> OutboundRequest:
     """把宿主消息字典翻译成一次 Flandora 动作调用。
 
@@ -116,7 +113,6 @@ def build_outbound_request(
         message: 宿主下发的消息字典（``_session_message_to_dict`` 的输出）。
         logger: 插件日志对象。
         route: 宿主附带的路由信息。
-        self_id: 机器人自身账号，供段翻译参考。
 
     Returns:
         OutboundRequest: 动作名、参数与被降级/跳过的段说明。
@@ -133,7 +129,7 @@ def build_outbound_request(
     if not isinstance(components, Sequence) or isinstance(components, (str, bytes)):
         components = []
 
-    built = build_outbound_segments(components, logger=logger, self_id=self_id)
+    built = build_outbound_segments(components, logger=logger)
 
     if not built.segments:
         detail = "、".join(built.dropped) if built.dropped else "无可用段"

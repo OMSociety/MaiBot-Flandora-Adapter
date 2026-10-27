@@ -16,6 +16,12 @@ from urllib.parse import unquote, urlparse
 
 from ..constants import (
     BASE64_URI_PREFIX,
+    COMPONENT_AT,
+    COMPONENT_FILE,
+    COMPONENT_IMAGE,
+    COMPONENT_REPLY,
+    COMPONENT_TEXT,
+    COMPONENT_VOICE,
     FILE_URI_PREFIX,
     HTTP_PREFIXES,
     SEGMENT_AT,
@@ -31,14 +37,6 @@ from ..constants import (
     SEGMENT_TEXT,
     SEGMENT_VIDEO,
 )
-
-# 宿主侧组件类型名
-COMPONENT_TEXT = "text"
-COMPONENT_AT = "at"
-COMPONENT_IMAGE = "image"
-COMPONENT_VOICE = "voice"
-COMPONENT_FILE = "file"
-COMPONENT_REPLY = "reply"
 
 PLACEHOLDER_PICTURE = "[图片]"
 PLACEHOLDER_VOICE = "[语音]"
@@ -240,6 +238,7 @@ def build_components(
 
     for raw_segment in segments:
         if not isinstance(raw_segment, Mapping):
+            logger.debug(f"入站段不是映射，已跳过：{type(raw_segment).__name__}")
             continue
         kind = segment_type(raw_segment)
         data = segment_data(raw_segment)
@@ -251,6 +250,8 @@ def build_components(
             text = "" if text is None else str(text)
             if text:
                 result.components.append(text_component(text))
+            else:
+                logger.debug("入站文本段是空串，已跳过")
             continue
 
         if kind == SEGMENT_AT:

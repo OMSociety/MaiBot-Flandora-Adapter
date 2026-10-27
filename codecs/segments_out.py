@@ -9,16 +9,18 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, Dict, List, Mapping, Sequence
 
-from ..constants import BASE64_URI_PREFIX, HTTP_PREFIXES
-
-COMPONENT_TEXT = "text"
-COMPONENT_AT = "at"
-COMPONENT_IMAGE = "image"
-COMPONENT_EMOJI = "emoji"
-COMPONENT_VOICE = "voice"
-COMPONENT_FILE = "file"
-COMPONENT_REPLY = "reply"
-COMPONENT_FORWARD = "forward"
+from ..constants import (
+    BASE64_URI_PREFIX,
+    COMPONENT_AT,
+    COMPONENT_EMOJI,
+    COMPONENT_FILE,
+    COMPONENT_FORWARD,
+    COMPONENT_IMAGE,
+    COMPONENT_REPLY,
+    COMPONENT_TEXT,
+    COMPONENT_VOICE,
+    HTTP_PREFIXES,
+)
 
 PLACEHOLDER_PICTURE = "[图片]"
 PLACEHOLDER_VOICE = "[语音]"
@@ -143,24 +145,22 @@ def build_outbound_segments(
     components: Sequence[Any],
     *,
     logger: Any,
-    self_id: str = "",
 ) -> OutboundSegments:
     """把宿主组件列表翻译成 Flandora 能接受的段列表。
 
     Args:
         components: 宿主 ``raw_message`` 组件列表。
         logger: 插件日志对象。
-        self_id: 机器人自身账号（当前未用到，保留给后续按需改造）。
 
     Returns:
         OutboundSegments: 段列表与被降级/跳过的段说明。
     """
 
-    del self_id
     result = OutboundSegments()
 
     for raw_component in components:
         if not isinstance(raw_component, Mapping):
+            logger.debug(f"出站组件不是映射，已跳过：{type(raw_component).__name__}")
             continue
         kind = str(raw_component.get("type") or "").strip().lower()
 

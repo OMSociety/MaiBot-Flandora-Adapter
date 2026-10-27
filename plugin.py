@@ -108,7 +108,6 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
                 message,
                 logger=self.ctx.logger,
                 route=route,
-                self_id=self._current_account_id(),
             )
         except ValueError as exc:
             return {"success": False, "error": str(exc), "metadata": {"action": "", "retcode": -1}}
@@ -194,14 +193,6 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
             return FlandoraPluginSettings()
         return config if isinstance(config, FlandoraPluginSettings) else FlandoraPluginSettings()
 
-    def _current_account_id(self) -> str:
-        """当前已知的机器人账号。"""
-
-        runtime = self._runtime
-        if runtime is None:
-            return ""
-        return str(runtime.runtime_state.account_id or "").strip()
-
     def _apply_settings(self, runtime: FlandoraRuntime, settings: FlandoraPluginSettings) -> None:
         """把新配置就地灌进运行中的运行时。"""
 
@@ -214,43 +205,54 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         """建立连接并启动运行时。"""
 
         async with self._lifecycle_lock:
-            if self._runtime is not None:
-                return
+            await self._start_runtime_locked(settings)
 
-            if not settings.validate_runtime_config(self.ctx.logger):
-                self.ctx.logger.warning("适配器配置未通过启动校验，未建立连接")
-                return
+    async def _start_runtime_locked(self, settings: FlandoraPluginSettings) -> None:
+        """建立连接并启动运行时；调用方须已持有生命周期锁。"""
 
-            runtime = build_runtime(
-                settings=settings,
-                gateway=self.ctx.gateway,
-                logger=self.ctx.logger,
-            )
-            runtime.start()
-            self._runtime = runtime
-            self._connection_signature = settings.client.connection_signature()
-            self.ctx.logger.info(
-                f"已启动 Flandora 适配器：server={settings.client.server} "
-                f"port={settings.client.port} scope={FLANDORA_SCOPE}"
-            )
+        if self._runtime is not None:
+            return
+
+        if not settings.validate_runtime_config(self.ctx.logger):
+            self.ctx.logger.warning("适配器配置未通过启动校验，未建立连接")
+            return
+
+        runtime = build_runtime(
+            settings=settings,
+            gateway=self.ctx.gateway,
+            logger=self.ctx.logger,
+        )
+        runtime.start()
+        self._runtime = runtime
+        self._connection_signature = settings.client.connection_signature()
+        self.ctx.logger.info(
+            f"已启动 Flandora 适配器：server={settings.client.server} "
+            f"port={settings.client.port} scope={FLANDORA_SCOPE}"
+        )
 
     async def _stop_runtime(self) -> None:
         """停掉运行时并清空状态。"""
 
         async with self._lifecycle_lock:
-            runtime = self._runtime
-            self._runtime = None
-            self._connection_signature = None
-            if runtime is None:
-                return
-            await runtime.stop()
-            self.ctx.logger.info("Flandora 适配器已停止")
+            await self._stop_runtime_locked()
+
+    async def _stop_runtime_locked(self) -> None:
+        """停掉运行时并清空状态；调用方须已持有生命周期锁。"""
+
+        runtime = self._runtime
+        self._runtime = None
+        self._connection_signature = None
+        if runtime is None:
+            return
+        await runtime.stop()
+        self.ctx.logger.info("Flandora 适配器已停止")
 
     async def _restart_runtime(self, settings: FlandoraPluginSettings) -> None:
-        """按新配置重建运行时。"""
+        """按新配置重建运行时，停与起在同一把锁内完成。"""
 
-        await self._stop_runtime()
-        await self._start_runtime(settings)
+        async with self._lifecycle_lock:
+            await self._stop_runtime_locked()
+            await self._start_runtime_locked(settings)
 
 
 def create_plugin() -> MaiBotPlugin:
