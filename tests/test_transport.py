@@ -65,6 +65,11 @@ class FakeWebSocket:
         self.close_reason = reason
         await self._inbox.put(None)
 
+    async def push(self, raw: str) -> None:
+        """从服务端方向塞一条报文（事件用）。"""
+
+        await self._inbox.put(raw)
+
 
 class FakeConnect:
     def __init__(self, ws: FakeWebSocket) -> None:
@@ -151,6 +156,40 @@ def test_connected_hook_failure_keeps_connection(logger, patched_connect):
         await asyncio.sleep(0.1)
 
         assert transport.connected is True
+
+        await transport.stop()
+
+    asyncio.run(scenario())
+
+
+def test_event_handler_can_call_actions(logger, patched_connect):
+    """处理事件时调动作也必须拿到响应——通知里现查昵称走的就是这条路径。"""
+
+    async def scenario() -> None:
+        ws = FakeWebSocket()
+        patched_connect(ws)
+
+        handled = asyncio.Event()
+        results: list[dict] = []
+        transport = None
+
+        async def on_event(payload: dict) -> None:
+            assert payload["post_type"] == "notice"
+            assert transport is not None
+            results.append(await transport.call_action("get_stranger_info", {"user_id": 7}))
+            handled.set()
+
+        transport = transport_mod.FlandoraTransport(
+            settings=StubSettings(),
+            logger=logger,
+            on_event=on_event,
+        )
+        transport.start()
+        await asyncio.sleep(0.05)
+        await ws.push(json.dumps({"post_type": "notice", "notice_type": "notify"}))
+
+        await asyncio.wait_for(handled.wait(), timeout=5.0)
+        assert results and results[0]["status"] == "ok"
 
         await transport.stop()
 

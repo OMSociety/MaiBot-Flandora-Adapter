@@ -74,6 +74,8 @@ class FlandoraTransport:
 
         self._ws: Any = None
         self._runner_task: Optional[asyncio.Task[None]] = None
+        self._event_task: Optional[asyncio.Task[None]] = None
+        self._event_queue: asyncio.Queue[Any] = asyncio.Queue()
         self._pending: Dict[str, asyncio.Future[Dict[str, Any]]] = {}
         self._echo_seq = 0
         self._last_event_at = 0.0
@@ -93,6 +95,7 @@ class FlandoraTransport:
             return
         self._closed = False
         self._runner_task = asyncio.create_task(self._run_forever(), name="flandora-transport")
+        self._event_task = asyncio.create_task(self._drain_events(), name="flandora-events")
 
     async def stop(self) -> None:
         """关闭连接并等待后台任务结束。"""
@@ -100,6 +103,8 @@ class FlandoraTransport:
         self._closed = True
         task = self._runner_task
         self._runner_task = None
+        event_task = self._event_task
+        self._event_task = None
 
         ws = self._ws
         if ws is not None:
@@ -110,6 +115,11 @@ class FlandoraTransport:
             task.cancel()
             with contextlib.suppress(asyncio.CancelledError, Exception):
                 await task
+
+        if event_task is not None and not event_task.done():
+            event_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError, Exception):
+                await event_task
 
         self._fail_pending("连接已关闭")
 
@@ -301,12 +311,24 @@ class FlandoraTransport:
                 self._logger.debug("收到迟到的动作响应，已丢弃")
             return
 
-        try:
-            await self._on_event(payload)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            self._logger.error(f"处理入站事件失败：{exc}")
+        # 事件进队列、由独立任务按序消费：处理一条事件时可能还要调动作（通知里现查昵称
+        # 就是），而动作的响应只能由本循环收。在这里直接 await 回调会把读循环压在回调
+        # 后面，回调里的动作永远等不到响应。
+        self._event_queue.put_nowait(payload)
+
+    async def _drain_events(self) -> None:
+        """按序消费事件队列，把处理与读循环解耦。"""
+
+        while True:
+            payload = await self._event_queue.get()
+            try:
+                await self._on_event(payload)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:  # noqa: BLE001 - 单条事件失败不应中断队列
+                self._logger.error(f"处理入站事件失败：{exc}")
+            finally:
+                self._event_queue.task_done()
 
     def _fail_pending(self, reason: str) -> None:
         """让所有等待中的动作请求立即失败。"""
