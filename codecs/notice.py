@@ -57,6 +57,32 @@ def _message_id_suffix(message_id: str, known: bool) -> str:
     return f"（message_id={message_id}）"
 
 
+def _display_name(names: Optional[Mapping[str, str]], key: str, fallback: str) -> str:
+    """取已解析好的显示名，没解析出来就退回数字 ID。"""
+
+    resolved = str((names or {}).get(key) or "").strip()
+    return resolved or fallback
+
+
+def _recall_text(
+    *,
+    operator_id: str,
+    user_id: str,
+    operator_name: str,
+    user_name: str,
+    message_id: str,
+    message_id_known: bool,
+) -> str:
+    """撤回通知正文：同一个人撤回写一句话，别人撤回写两个人。"""
+
+    suffix = _message_id_suffix(message_id, message_id_known)
+    if operator_id and user_id and operator_id == user_id:
+        return f"{operator_name} 撤回了一条消息{suffix}"
+    if user_id and user_name != operator_name:
+        return f"{operator_name} 撤回了 {user_name} 的消息{suffix}"
+    return f"{operator_name} 撤回了一条消息{suffix}"
+
+
 def build_notice_message_dict(
     payload: Mapping[str, Any],
     *,
@@ -64,6 +90,7 @@ def build_notice_message_dict(
     enable_group_recall: bool = True,
     enable_friend_recall: bool = True,
     enable_poke: bool = True,
+    names: Optional[Mapping[str, str]] = None,
 ) -> Optional[Dict[str, Any]]:
     """把 Flandora 的通知事件翻译成宿主 message_dict。
 
@@ -73,6 +100,7 @@ def build_notice_message_dict(
         enable_group_recall: 是否上报群消息撤回。
         enable_friend_recall: 是否上报好友撤回。
         enable_poke: 是否上报戳一戳。
+        names: 已解析的显示名，键为 ``operator`` / ``user`` / ``target``；缺项回退数字 ID。
 
     Returns:
         Optional[Dict[str, Any]]: 通知字典；类型未识别或已被配置关闭时返回 ``None``。
@@ -92,30 +120,47 @@ def build_notice_message_dict(
     if not isinstance(timestamp, (int, float)):
         timestamp = time.time()
 
+    operator_name = _display_name(names, "operator", operator_id)
+    user_name = _display_name(names, "user", user_id) or operator_name
+
     text = ""
     is_group_event = False
 
     if notice_type == NOTICE_GROUP_RECALL:
         if not enable_group_recall:
             return None
-        text = (
-            f"[事件-群撤回] {operator_id} 撤回了 {user_id} 的消息"
-            f"{_message_id_suffix(message_id, message_id_known)}"
+        text = "[事件-群撤回] " + _recall_text(
+            operator_id=operator_id,
+            user_id=user_id,
+            operator_name=operator_name,
+            user_name=user_name,
+            message_id=message_id,
+            message_id_known=message_id_known,
         )
         is_group_event = True
 
     elif notice_type == NOTICE_FRIEND_RECALL:
         if not enable_friend_recall:
             return None
-        text = (
-            f"[事件-私聊撤回] {operator_id} 撤回了 {user_id} 的消息"
-            f"{_message_id_suffix(message_id, message_id_known)}"
+        text = "[事件-私聊撤回] " + _recall_text(
+            operator_id=operator_id,
+            user_id=user_id,
+            operator_name=operator_name,
+            user_name=user_name,
+            message_id=message_id,
+            message_id_known=message_id_known,
         )
 
     elif notice_type == NOTICE_NOTIFY and sub_type == NOTIFY_POKE:
         if not enable_poke:
             return None
-        text = f"[事件-戳一戳] {user_id} 戳了戳 {target_id or '对方'}"
+        poke_suffix = str(payload.get("suffix") or "").strip()
+        if self_id and target_id == self_id:
+            target_name = "你"
+        else:
+            target_name = _display_name(names, "target", target_id) or "对方"
+        extra = f"（{poke_suffix}）" if poke_suffix else ""
+        text = f"[事件-戳一戳] {operator_name} 拍了拍{target_name}{extra}"
         is_group_event = bool(group_id)
 
     else:
@@ -136,7 +181,7 @@ def build_notice_message_dict(
     message_info: Dict[str, Any] = {
         "user_info": {
             "user_id": operator_id,
-            "user_nickname": operator_id,
+            "user_nickname": operator_name,
             "user_cardname": None,
         },
         "additional_config": additional_config,

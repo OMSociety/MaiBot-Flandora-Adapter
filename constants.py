@@ -32,6 +32,9 @@ NOTICE_FRIEND_RECALL = "friend_recall"
 NOTICE_NOTIFY = "notify"
 NOTIFY_POKE = "poke"
 
+# 通知里的人名解析：单次查询的超时，查不到就回退数字 ID
+NOTICE_NAME_TIMEOUT_SEC = 3.0
+
 # 段类型
 SEGMENT_TEXT = "text"
 SEGMENT_AT = "at"

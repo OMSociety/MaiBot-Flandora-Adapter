@@ -121,6 +121,9 @@ Flandora 侧的 `ob_message_format` 请保持默认的 `array`——本插件的
 | `enable_friend_recall` | `true` | 好友撤回消息 |
 | `enable_poke` | `true` | 戳一戳 |
 
+通知文本里的人名由适配器按 ID 现查（群内走 `get_group_member_info`，好友走 `get_stranger_info`），
+单次查询超过 3 秒或 Flandora 回 `1406` 时回退成数字 ID；戳一戳会带上对方设置的拍一拍文案。
+
 ### `[debug]`
 
 | 字段 | 默认值 | 说明 |

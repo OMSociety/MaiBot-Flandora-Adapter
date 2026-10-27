@@ -124,17 +124,15 @@ def build_runtime(
         platform=FLANDORA_PLATFORM,
         logger=logger,
     )
-    router = FlandoraEventRouter(
-        gateway=gateway,
-        gateway_name=FLANDORA_GATEWAY_NAME,
-        platform=FLANDORA_PLATFORM,
-        logger=logger,
-        debug_logger=debug_logger,
-        settings=settings,
-    )
 
-    # transport 需要回调，而回调又要用到尚未构造出来的 runtime，用一个可变槽位晚绑定。
+    # 回调要用的对象都晚一步才构造出来，统一用可变槽位晚绑定。
     slot: List[Optional[FlandoraRuntime]] = [None]
+    event_slot: List[Optional[FlandoraEventRouter]] = [None]
+
+    async def _on_event(payload: Any) -> None:
+        current = event_slot[0]
+        if current is not None:
+            await current.handle_event(payload)
 
     async def _on_connected() -> None:
         current = slot[0]
@@ -149,12 +147,22 @@ def build_runtime(
     transport = FlandoraTransport(
         settings=settings.client,
         logger=logger,
-        on_event=router.handle_event,
+        on_event=_on_event,
         on_connected=_on_connected,
         on_disconnected=_on_disconnected,
     )
     action_service = FlandoraActionService(transport, logger)
     query_service = FlandoraQueryService(action_service, logger)
+    router = FlandoraEventRouter(
+        gateway=gateway,
+        gateway_name=FLANDORA_GATEWAY_NAME,
+        platform=FLANDORA_PLATFORM,
+        logger=logger,
+        debug_logger=debug_logger,
+        settings=settings,
+        query_service=query_service,
+    )
+    event_slot[0] = router
 
     runtime = FlandoraRuntime(
         settings=settings,

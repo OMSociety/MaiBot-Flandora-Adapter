@@ -105,6 +105,29 @@ def test_raw_message_is_used_when_segment_list_is_empty(logger):
     assert built["processed_plain_text"] == "裸文本"
 
 
+def test_quote_of_bot_message_wakes_via_prepended_at(logger):
+    """Flandora 在被引消息属于机器人时，会在段数组最前面补一个 at 自己的段。"""
+
+    built = inbound.build_message_dict(
+        _group_event(
+            message=[
+                {"type": "at", "data": {"qq": 1001}},
+                {"type": "reply", "data": {"id": 500}},
+                {"type": "text", "data": {"text": "这句什么意思"}},
+            ],
+            is_mentioned=False,
+        ),
+        self_id="1001",
+        attachment_max_bytes=1024,
+        logger=logger,
+    )
+
+    assert built["is_at"] is True
+    assert built["is_mentioned"] is True
+    assert built["message_info"]["additional_config"]["at_bot"] is True
+    assert built["raw_message"][1]["type"] == "reply"
+
+
 def test_group_recall_notice_reports_message_id(logger):
     built = notice.build_notice_message_dict(
         {
@@ -157,7 +180,7 @@ def test_friend_recall_notice_text(logger):
     )
 
     assert built is not None
-    assert built["processed_plain_text"] == "[事件-私聊撤回] 7 撤回了 7 的消息（message_id=12）"
+    assert built["processed_plain_text"] == "[事件-私聊撤回] 7 撤回了一条消息（message_id=12）"
     assert "group_info" not in built["message_info"]
 
 
@@ -174,7 +197,67 @@ def test_poke_notice_text(logger):
     )
 
     assert built is not None
-    assert built["processed_plain_text"] == "[事件-戳一戳] 7 戳了戳 1001"
+    assert built["processed_plain_text"] == "[事件-戳一戳] 7 拍了拍你"
+
+
+def test_notice_uses_resolved_names(logger):
+    built = notice.build_notice_message_dict(
+        {
+            "time": 1730000005,
+            "notice_type": "group_recall",
+            "group_id": 88,
+            "user_id": 7,
+            "operator_id": 8,
+            "message_id": 444,
+            "message_id_known": True,
+        },
+        self_id="1001",
+        names={"operator": "张三", "user": "李四"},
+    )
+
+    assert built is not None
+    assert (
+        built["processed_plain_text"] == "[事件-群撤回] 张三 撤回了 李四 的消息（message_id=444）"
+    )
+    assert built["message_info"]["user_info"]["user_nickname"] == "张三"
+    assert built["message_info"]["user_info"]["user_id"] == "8"
+
+
+def test_self_recall_reads_as_one_message(logger):
+    built = notice.build_notice_message_dict(
+        {
+            "time": 1730000006,
+            "notice_type": "group_recall",
+            "group_id": 88,
+            "user_id": 7,
+            "operator_id": 7,
+            "message_id": 0,
+            "message_id_known": False,
+        },
+        self_id="1001",
+        names={"operator": "张三"},
+    )
+
+    assert built is not None
+    assert built["processed_plain_text"] == "[事件-群撤回] 张三 撤回了一条消息"
+
+
+def test_poke_notice_includes_suffix_and_target(logger):
+    built = notice.build_notice_message_dict(
+        {
+            "time": 1730000007,
+            "notice_type": "notify",
+            "sub_type": "poke",
+            "user_id": 7,
+            "target_id": 1001,
+            "suffix": "拍了拍我的小肚子",
+        },
+        self_id="1001",
+        names={"operator": "张三"},
+    )
+
+    assert built is not None
+    assert built["processed_plain_text"] == "[事件-戳一戳] 张三 拍了拍你（拍了拍我的小肚子）"
 
 
 def test_notice_respects_disable_switch(logger):

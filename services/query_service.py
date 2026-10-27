@@ -1,7 +1,7 @@
 """只读查询服务。
 
-把连接建立后要用的只读动作收在这里：取机器人账号、读运行状态。调用方不直接接触
-WebSocket。
+把连接建立后要用的只读动作收在这里：取机器人账号、读运行状态、按 ID 取显示名。
+调用方不直接接触 WebSocket。
 """
 
 from __future__ import annotations
@@ -21,6 +21,19 @@ def _as_dict(value: Any) -> Dict[str, Any]:
     """把任意值安全规整为字典。"""
 
     return value if isinstance(value, dict) else {}
+
+
+def _as_id(value: Any) -> int:
+    """把用户/群标识转成 Flandora 接受的整数 ID。
+
+    Raises:
+        ValueError: 传入的不是纯数字标识时。
+    """
+
+    text = str(value or "").strip()
+    if not text.isdigit():
+        raise ValueError(f"不是 Flandora 分配的数字 ID：{text!r}")
+    return int(text)
 
 
 class FlandoraQueryService:
@@ -65,3 +78,18 @@ class FlandoraQueryService:
         """取 Flandora 的运行状态（微信是否在线、收发通道是否就绪）。"""
 
         return _as_dict(await self._fetch("get_status"))
+
+    async def get_stranger_info(self, user_id: Any) -> Dict[str, Any]:
+        """取一个用户的资料（昵称、备注）。"""
+
+        return _as_dict(await self._fetch("get_stranger_info", {"user_id": _as_id(user_id)}))
+
+    async def get_group_member_info(self, group_id: Any, user_id: Any) -> Dict[str, Any]:
+        """取群成员的资料（昵称、群名片）。"""
+
+        return _as_dict(
+            await self._fetch(
+                "get_group_member_info",
+                {"group_id": _as_id(group_id), "user_id": _as_id(user_id)},
+            )
+        )

@@ -5,17 +5,24 @@
 
 from __future__ import annotations
 
-from typing import Any, Mapping
+import asyncio
+from typing import Any, Dict, Mapping
 
 from ..codecs import build_message_dict, build_notice_dedupe_key, build_notice_message_dict
 from ..config import FlandoraPluginSettings
 from ..constants import (
     FLANDORA_SCOPE,
+    NOTICE_FRIEND_RECALL,
+    NOTICE_GROUP_RECALL,
+    NOTICE_NAME_TIMEOUT_SEC,
+    NOTICE_NOTIFY,
+    NOTIFY_POKE,
     POST_TYPE_MESSAGE,
     POST_TYPE_MESSAGE_SENT,
     POST_TYPE_META_EVENT,
     POST_TYPE_NOTICE,
 )
+from ..transport import FlandoraActionError
 
 
 class FlandoraEventRouter:
@@ -30,6 +37,7 @@ class FlandoraEventRouter:
         logger: Any,
         debug_logger: Any,
         settings: FlandoraPluginSettings,
+        query_service: Any = None,
     ) -> None:
         """初始化路由器。
 
@@ -40,6 +48,7 @@ class FlandoraEventRouter:
             logger: 插件日志对象。
             debug_logger: 原始事件调试日志。
             settings: 当前配置快照。
+            query_service: 只读查询服务，用来把通知里的数字 ID 换成昵称。
         """
 
         self._gateway = gateway
@@ -48,6 +57,7 @@ class FlandoraEventRouter:
         self._logger = logger
         self._debug = debug_logger
         self._settings = settings
+        self._query_service = query_service
 
     @property
     def scope(self) -> str:
@@ -131,6 +141,7 @@ class FlandoraEventRouter:
 
         self_id = str(payload.get("self_id") or "").strip()
         notice_config = self._settings.notice
+        names = await self._resolve_notice_names(payload)
 
         message_dict = build_notice_message_dict(
             payload,
@@ -138,6 +149,7 @@ class FlandoraEventRouter:
             enable_group_recall=notice_config.enable_group_recall,
             enable_friend_recall=notice_config.enable_friend_recall,
             enable_poke=notice_config.enable_poke,
+            names=names,
         )
         if message_dict is None:
             self._logger.debug(
@@ -151,6 +163,59 @@ class FlandoraEventRouter:
             external_message_id=str(payload.get("message_id") or "").strip(),
             dedupe_key=build_notice_dedupe_key(payload),
         )
+
+    async def _resolve_notice_names(self, payload: Mapping[str, Any]) -> Dict[str, str]:
+        """把通知事件里出现的人解析成显示名。
+
+        撤回与戳一戳都只带数字 ID，直接写进文本在麦麦里读不出是谁；这里按事件类型
+        逐个查一次资料。任何一步查不到都留空，由编解码回退到数字 ID。
+        """
+
+        notice_type = str(payload.get("notice_type") or "").strip().lower()
+        sub_type = str(payload.get("sub_type") or "").strip().lower()
+        group_id = str(payload.get("group_id") or "").strip()
+
+        names: Dict[str, str] = {}
+        if notice_type in (NOTICE_GROUP_RECALL, NOTICE_FRIEND_RECALL):
+            user_id = str(payload.get("user_id") or "").strip()
+            operator_id = str(payload.get("operator_id") or "").strip() or user_id
+            names["operator"] = await self._lookup_name(operator_id, group_id)
+            if user_id and user_id != operator_id:
+                names["user"] = await self._lookup_name(user_id, group_id)
+            return names
+
+        if notice_type == NOTICE_NOTIFY and sub_type == NOTIFY_POKE:
+            user_id = str(payload.get("user_id") or "").strip()
+            target_id = str(payload.get("target_id") or "").strip()
+            names["operator"] = await self._lookup_name(user_id, group_id)
+            if target_id:
+                names["target"] = await self._lookup_name(target_id, group_id)
+        return names
+
+    async def _lookup_name(self, user_id: str, group_id: str) -> str:
+        """按 ID 取显示名；查不到返回空串，由调用方回退数字 ID。"""
+
+        if not user_id or self._query_service is None:
+            return ""
+        try:
+            if group_id:
+                info = await asyncio.wait_for(
+                    self._query_service.get_group_member_info(group_id, user_id),
+                    timeout=NOTICE_NAME_TIMEOUT_SEC,
+                )
+            else:
+                info = await asyncio.wait_for(
+                    self._query_service.get_stranger_info(user_id),
+                    timeout=NOTICE_NAME_TIMEOUT_SEC,
+                )
+        except (FlandoraActionError, TimeoutError, ValueError) as exc:
+            self._logger.debug(f"取用户 {user_id} 的昵称失败，通知里改用数字 ID：{exc}")
+            return ""
+        for key in ("nickname", "card", "remark"):
+            value = str(info.get(key) or "").strip()
+            if value:
+                return value
+        return ""
 
     def handle_meta_event(self, payload: Mapping[str, Any]) -> None:
         """处理元事件（心跳、生命周期）。
