@@ -197,7 +197,7 @@ def test_poke_notice_text(logger):
     )
 
     assert built is not None
-    assert built["processed_plain_text"] == "7 拍了拍你"
+    assert built["processed_plain_text"] == "7 拍了拍 你"
 
 
 def test_notice_uses_resolved_names(logger):
@@ -257,7 +257,7 @@ def test_poke_notice_includes_suffix_and_target(logger):
     )
 
     assert built is not None
-    assert built["processed_plain_text"] == "张三 拍了拍你的小肚子"
+    assert built["processed_plain_text"] == "张三 拍了拍 你的小肚子"
 
 
 def test_notice_respects_disable_switch(logger):

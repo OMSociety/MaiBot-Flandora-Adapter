@@ -122,7 +122,7 @@ def test_poke_resolves_both_sides(logger):
         )
     )
 
-    assert router._gateway.pushed[0]["processed_plain_text"] == "张三 拍了拍张三的小肚子"
+    assert router._gateway.pushed[0]["processed_plain_text"] == "张三 拍了拍 张三的小肚子"
     assert query.calls == [("friend", "7"), ("friend", "8")]
 
 

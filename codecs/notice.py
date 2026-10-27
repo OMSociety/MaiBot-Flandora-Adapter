@@ -154,14 +154,14 @@ def build_notice_message_dict(
     elif notice_type == NOTICE_NOTIFY and sub_type == NOTIFY_POKE:
         if not enable_poke:
             return None
-        # 微信的拍一拍文案（``<suffix>``）自带「的」，直接拼在对象后面就是原句：
-        # 「豹豹包 拍了拍 芙兰朵露的流萤说真好看」。
+        # 微信 sysmsg 的 ``<title>`` 是「豹豹包 拍了拍 芙兰朵露」，``拍了拍`` 两侧各带
+        # 一个空格；``<suffix>`` 自带「的」，紧贴对象名构成原句。
         poke_suffix = str(payload.get("suffix") or "").strip()
         if self_id and target_id == self_id:
             target_name = "你"
         else:
             target_name = _display_name(names, "target", target_id) or "对方"
-        text = f"{operator_name} 拍了拍{target_name}{poke_suffix}"
+        text = f"{operator_name} 拍了拍 {target_name}{poke_suffix}"
         is_group_event = bool(group_id)
 
     else:
