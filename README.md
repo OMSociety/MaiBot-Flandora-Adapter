@@ -28,7 +28,7 @@
 | 前置 | 要求 |
 | --- | --- |
 | MaiBot | 1.3.0 – 1.3.99 |
-| 插件 SDK | 2.7.0 – 2.99.99 |
+| 插件 SDK | 2.7.0 – 2.16.99 |
 | Python | 3.12 及以上（随麦麦运行环境，无需另装） |
 | 依赖 | `websockets >= 12.0`（宿主按 `_manifest.json` 自动安装） |
 | Flandora | 当前版本，`ob_message_format` 保持默认的 `array` |

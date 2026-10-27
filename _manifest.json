@@ -30,7 +30,7 @@
   },
   "sdk": {
     "min_version": "2.7.0",
-    "max_version": "2.99.99"
+    "max_version": "2.16.99"
   },
   "capabilities": [],
   "dependencies": [
