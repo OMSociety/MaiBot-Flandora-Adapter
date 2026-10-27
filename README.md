@@ -7,6 +7,7 @@
 <p align="center">MaiBot 微信个人号适配器插件，支持 Flandora 客户端</p>
 
 <p align="center">
+  <a href="https://github.com/OMSociety/MaiBot-Flandora-Adapter/releases"><img src="https://img.shields.io/github/v/tag/OMSociety/MaiBot-Flandora-Adapter?label=version&color=07C160" alt="Version"></a>
   <a href="https://github.com/OMSociety/MaiBot"><img src="https://img.shields.io/badge/MaiBot-1.3.0%20~%201.3.99-4B8BBE" alt="MaiBot"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/OMSociety/MaiBot-Flandora-Adapter?color=07C160" alt="License"></a>
   <a href="https://github.com/OMSociety/MaiBot-Flandora-Adapter/stargazers"><img src="https://img.shields.io/github/stars/OMSociety/MaiBot-Flandora-Adapter?color=07C160" alt="Stars"></a>

@@ -1,7 +1,7 @@
 # 运行期生成
-config.toml
-data/
-logs/
+/config.toml
+/data/
+/logs/
 
 # Python
 __pycache__/
