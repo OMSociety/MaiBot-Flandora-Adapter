@@ -63,6 +63,7 @@ def build_message_dict(
     self_id: str,
     attachment_max_bytes: int,
     logger: Any,
+    quote_wakes: bool = True,
 ) -> Dict[str, Any]:
     """把 Flandora 的消息事件翻译成宿主 message_dict。
 
@@ -71,6 +72,7 @@ def build_message_dict(
         self_id: 机器人自身账号。
         attachment_max_bytes: 单个附件内联上限。
         logger: 插件日志对象。
+        quote_wakes: 被引用时是否按「被提及」处理（配置项「引用必回复」）。
 
     Returns:
         Dict[str, Any]: 可直接交给 ``ctx.gateway.route_message`` 的字典。
@@ -115,7 +117,7 @@ def build_message_dict(
     # 被引的是机器人自己发的消息：Flandora 如实标记，正文与段不改写。
     # 这算「在跟我说话」，但不算 @，所以只抬 is_mentioned、不抬 is_at。
     declared_reply_to_self = bool(payload.get("reply_to_self"))
-    mentioned = bool(at_bot or declared_reply_to_self)
+    mentioned = bool(at_bot or (declared_reply_to_self and quote_wakes))
 
     additional_config: Dict[str, Any] = {
         "at_bot": at_bot,

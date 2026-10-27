@@ -174,6 +174,29 @@ def test_quote_of_other_message_does_not_wake(logger):
     assert built["message_info"]["additional_config"]["reply_to_self"] is False
 
 
+def test_quote_wakes_can_be_switched_off(logger):
+    """关掉「引用必回复」后，被引消息只如实记录、不抬提及位。"""
+
+    built = inbound.build_message_dict(
+        _group_event(
+            message=[
+                {"type": "reply", "data": {"id": 471}},
+                {"type": "text", "data": {"text": "测试引用"}},
+            ],
+            is_mentioned=False,
+            reply_to_self=True,
+        ),
+        self_id="1001",
+        attachment_max_bytes=1024,
+        logger=logger,
+        quote_wakes=False,
+    )
+
+    assert built["is_mentioned"] is False
+    assert built["is_at"] is False
+    assert built["message_info"]["additional_config"]["reply_to_self"] is True
+
+
 def test_group_recall_notice_reports_message_id(logger):
     built = notice.build_notice_message_dict(
         {

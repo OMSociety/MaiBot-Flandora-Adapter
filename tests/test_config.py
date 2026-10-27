@@ -38,6 +38,15 @@ def test_client_defaults():
     assert client.build_ws_uri() == "ws://127.0.0.1:7999/"
 
 
+def test_filter_defaults_keep_quote_waking():
+    filters = config_mod.FlandoraFilterConfig()
+
+    assert filters.ignore_self_message is True
+    assert filters.quote_wakes is True
+    assert filters.is_user_banned("7") is False
+    assert filters.is_group_banned("88") is False
+
+
 def test_server_strips_scheme_and_path():
     client = config_mod.FlandoraClientConfig(server="ws://10.0.0.5/onebot")
 

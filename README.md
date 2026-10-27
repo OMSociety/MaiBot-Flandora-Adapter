@@ -110,6 +110,7 @@ Flandora 侧的 `ob_message_format` 请保持默认的 `array`——本插件的
 | `ignore_self_message` | `true` | 在入站阶段挡掉自己在微信客户端手发的消息，避免麦麦自问自答 |
 | `ban_user_id` | 空 | 用户黑名单，命中的消息在入站阶段过滤掉；可填整数 ID 或 wxid |
 | `ban_group_id` | 空 | 群黑名单，命中的消息在入站阶段过滤掉；可填整数 ID 或群 wxid（`xxx@chatroom`） |
+| `quote_wakes` | `true` | 引用必回复：引用机器人自己发出的消息时按「被提及」处理，回复概率拉满；关闭后只按真实的 @ 与提及判断 |
 
 ### `[notice]`
 

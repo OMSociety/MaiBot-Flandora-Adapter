@@ -124,6 +124,7 @@ class FlandoraEventRouter:
                 self_id=self_id,
                 attachment_max_bytes=self._settings.client.attachment_max_bytes,
                 logger=self._logger,
+                quote_wakes=filters.quote_wakes,
             )
         except ValueError as exc:
             self._logger.warning(f"入站消息格式不受支持，已丢弃：{exc}")
