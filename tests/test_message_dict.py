@@ -197,7 +197,7 @@ def test_poke_notice_text(logger):
     )
 
     assert built is not None
-    assert built["processed_plain_text"] == "[事件-戳一戳] 7 拍了拍你"
+    assert built["processed_plain_text"] == "7 拍了拍你"
 
 
 def test_notice_uses_resolved_names(logger):
@@ -250,14 +250,14 @@ def test_poke_notice_includes_suffix_and_target(logger):
             "sub_type": "poke",
             "user_id": 7,
             "target_id": 1001,
-            "suffix": "拍了拍我的小肚子",
+            "suffix": "的小肚子",
         },
         self_id="1001",
         names={"operator": "张三"},
     )
 
     assert built is not None
-    assert built["processed_plain_text"] == "[事件-戳一戳] 张三 拍了拍你（拍了拍我的小肚子）"
+    assert built["processed_plain_text"] == "张三 拍了拍你的小肚子"
 
 
 def test_notice_respects_disable_switch(logger):

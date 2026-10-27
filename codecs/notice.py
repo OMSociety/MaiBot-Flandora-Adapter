@@ -1,7 +1,7 @@
 """通知事件编解码：Flandora 的 ``notice`` 事件 -> 宿主 message_dict。
 
-宿主只做类型识别（``is_notify=True``），通知文本由适配器完整格式化，前缀沿用
-``[事件-xxx]`` 约定（见 ``src/chat/message_receive/bot.py`` 的 ``handle_notice_message``）。
+宿主只做类型识别（``is_notify=True``），通知文本由适配器完整格式化。撤回类通知
+带 ``[事件-xxx]`` 前缀以区别于普通消息；拍一拍照微信原句输出，不另加前缀。
 """
 
 from __future__ import annotations
@@ -154,13 +154,14 @@ def build_notice_message_dict(
     elif notice_type == NOTICE_NOTIFY and sub_type == NOTIFY_POKE:
         if not enable_poke:
             return None
+        # 微信的拍一拍文案（``<suffix>``）自带「的」，直接拼在对象后面就是原句：
+        # 「豹豹包 拍了拍 芙兰朵露的流萤说真好看」。
         poke_suffix = str(payload.get("suffix") or "").strip()
         if self_id and target_id == self_id:
             target_name = "你"
         else:
             target_name = _display_name(names, "target", target_id) or "对方"
-        extra = f"（{poke_suffix}）" if poke_suffix else ""
-        text = f"[事件-戳一戳] {operator_name} 拍了拍{target_name}{extra}"
+        text = f"{operator_name} 拍了拍{target_name}{poke_suffix}"
         is_group_event = bool(group_id)
 
     else:

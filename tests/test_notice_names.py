@@ -117,14 +117,12 @@ def test_poke_resolves_both_sides(logger):
                 "sub_type": "poke",
                 "user_id": 7,
                 "target_id": 8,
-                "suffix": "拍了拍我的小肚子",
+                "suffix": "的小肚子",
             }
         )
     )
 
-    assert router._gateway.pushed[0]["processed_plain_text"] == (
-        "[事件-戳一戳] 张三 拍了拍张三（拍了拍我的小肚子）"
-    )
+    assert router._gateway.pushed[0]["processed_plain_text"] == "张三 拍了拍张三的小肚子"
     assert query.calls == [("friend", "7"), ("friend", "8")]
 
 
