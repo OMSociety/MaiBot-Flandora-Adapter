@@ -147,11 +147,10 @@ def test_quote_of_bot_message_wakes_via_reply_to_self(logger):
     )
 
     assert built["is_mentioned"] is True
-    assert built["is_at"] is False
+    assert built["is_at"] is True
     additional = built["message_info"]["additional_config"]
-    assert additional["at_bot"] is False
+    assert additional["at_bot"] is True
     assert additional["reply_to_self"] is True
-    assert additional["is_mentioned"] == 1.0
     assert built["processed_plain_text"] == "[回复]测试引用"
 
 
@@ -176,7 +175,7 @@ def test_quote_of_other_message_does_not_wake(logger):
 
 
 def test_quote_wakes_can_be_switched_off(logger):
-    """关掉「引用必回复」后，被引消息只如实记录、不抬提及位。"""
+    """关掉「引用必回复」后，被引消息只如实记录、不抬提及位与 @ 位。"""
 
     built = inbound.build_message_dict(
         _group_event(
@@ -196,7 +195,7 @@ def test_quote_wakes_can_be_switched_off(logger):
     assert built["is_mentioned"] is False
     assert built["is_at"] is False
     assert built["message_info"]["additional_config"]["reply_to_self"] is True
-    assert "is_mentioned" not in built["message_info"]["additional_config"]
+    assert built["message_info"]["additional_config"]["at_bot"] is False
 
 
 def test_group_recall_notice_reports_message_id(logger):

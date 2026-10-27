@@ -113,11 +113,12 @@ def build_message_dict(
 
     # Flandora 在群消息上如实标记 is_mentioned；段里 @ 到自身也算一次
     declared_mentioned = bool(payload.get("is_mentioned"))
-    at_bot = bool(built.at_bot or declared_mentioned)
     # 被引的是机器人自己发的消息：Flandora 如实标记，正文与段不改写。
-    # 这算「在跟我说话」，但不算 @，所以只抬 is_mentioned、不抬 is_at。
+    # 「引用必回复」开启时按被 @ 处理，宿主的 inevitable_at_reply 会让回复概率拉满。
     declared_reply_to_self = bool(payload.get("reply_to_self"))
-    mentioned = bool(at_bot or (declared_reply_to_self and quote_wakes))
+    quote_counts_as_at = bool(declared_reply_to_self and quote_wakes)
+    at_bot = bool(built.at_bot or declared_mentioned or quote_counts_as_at)
+    mentioned = bool(at_bot or declared_reply_to_self)
 
     additional_config: Dict[str, Any] = {
         "at_bot": at_bot,
@@ -125,11 +126,6 @@ def build_message_dict(
         "flandora_wxid": str(sender.get("wxid") or "").strip(),
         "flandora_group_wxid": str(payload.get("group_wxid") or "").strip(),
     }
-    if quote_wakes and declared_reply_to_self and not at_bot:
-        # 宿主把 additional_config 里的数值型 is_mentioned 直接当回复概率用
-        # （src/chat/utils/utils.py:167-170）。「引用必回复」要的是必回，光靠
-        # 顶层 is_mentioned 只算加权，过不了回复调度的频率门控，所以这里把概率拉满。
-        additional_config["is_mentioned"] = 1.0
 
     message_info: Dict[str, Any] = {
         "user_info": {

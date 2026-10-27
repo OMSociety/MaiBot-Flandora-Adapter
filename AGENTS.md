@@ -82,9 +82,10 @@ plugin.py                                → 以上全部
 - 未知段类型转成占位文本并记 warning，整条消息照常送达。
 - 出站目标必须是 Flandora 分配过的整数 ID，非整数在本地拦下并给出原因。
 - 「被提及」有三个来源：段里的 `at` 指向自己、事件上的 `is_mentioned`、事件上的 `reply_to_self`。
-  前两者抬 `is_at`，`reply_to_self` 只抬 `is_mentioned`（被引不等于被 @）；三者都写进
-  `additional_config` 供宿主与下游判断。`quote_wakes` 开启时另外把 `additional_config.is_mentioned`
-  写成 `1.0`——宿主把数值型当回复概率用，这是让「引用必回复」越过回复调度门控的唯一手段。
+  前两者抬 `is_at`；`reply_to_self` 在 `quote_wakes` 开启时也抬 `is_at`（按被 @ 处理，
+  宿主的 `inevitable_at_reply` 会因此拉满回复概率），关闭时只抬 `is_mentioned`。
+  三者都写进 `additional_config` 供宿主与下游判断；`reply_to_self` 始终是事件里的真实值，
+  不与「按 @ 处理」混写。
 
 ## 测试
 
