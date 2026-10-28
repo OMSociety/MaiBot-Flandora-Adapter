@@ -115,7 +115,7 @@ def resolve_local_path(reference: str) -> Optional[Path]:
 def read_reference_bytes(reference: str) -> bytes:
     """读取段里引用的文件内容。
 
-    ``base64://`` 直接解码，``file://`` 与本机路径读盘；``http(s)://`` 由调用方先取件。
+    ``base64://`` 直接解码，``file://`` 与本机路径读盘；``http(s)://`` 不取件。
 
     Returns:
         bytes: 读到的字节；引用形态不认识或读取失败时返回空字节串。
@@ -150,7 +150,11 @@ def _binary_component(
     placeholder: str,
     logger: Any,
 ) -> Dict[str, Any]:
-    """构造二进制类组件（image / voice）；内容取不到时退化为占位文本。"""
+    """构造二进制类组件（image / voice）；内容取不到时退化为占位文本。
+
+    宿主把段里的 ``data`` 当作人读的文本描述：留空时才会拿二进制字节去识图，
+    带上引用会让识图被跳过，整幅图片的 base64 于是进了聊天记录。
+    """
 
     reference = str(data.get("file") or data.get("url") or data.get("path") or "").strip()
     if not reference:
@@ -171,7 +175,7 @@ def _binary_component(
     declared_hash = str(data.get("hash") or "").strip()
     return {
         "type": component_type,
-        "data": reference,
+        "data": "",
         "hash": declared_hash or hashlib.sha256(payload).hexdigest(),
         "binary_data_base64": base64.b64encode(payload).decode("ascii"),
     }

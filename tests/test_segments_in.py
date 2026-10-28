@@ -67,7 +67,7 @@ def test_image_base64_segment_carries_hash_and_payload(logger):
     component = built.components[0]
     assert built.has_picture is True
     assert component["type"] == "image"
-    assert component["data"] == f"base64://{encoded}"
+    assert component["data"] == ""
     assert base64.b64decode(component["binary_data_base64"]) == payload
     assert len(component["hash"]) == 64
 
