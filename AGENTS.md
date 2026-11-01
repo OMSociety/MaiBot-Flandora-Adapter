@@ -7,6 +7,12 @@
 MaiBot 的消息网关插件：以正向 WebSocket 客户端身份连 Flandora，把微信个人号的消息
 送进麦麦，把麦麦的回复送回微信。仓库只有这一个插件，没有第二个产物。
 
+## 版本与兼容
+
+- 兼容下限是 MaiBot 1.3.19 + `maibot-plugin-sdk` 2.19.0，`_manifest.json` 的
+  `host_application` / `sdk` 已锁住；低于此版本不支持，也不写兼容分支。
+- 用到更新 SDK 的特性时同步抬 `sdk.min_version`，不要只改代码不改 manifest。
+
 ## 验收命令
 
 提交前四条全绿，一条不过不提交：
@@ -62,6 +68,14 @@ plugin.py                                → 以上全部
   `build_outbound_request`；不要把 `codecs/` 改成异步，也不要让段编码层自己下载。
 - 暂存目录必须用普通 `mkdir` 建（`tempfile.gettempdir()` 下按 uuid 取名），不要换回
   `tempfile.mkdtemp`：后者生成的目录只有创建者令牌可读，Flandora 读不到会报「文件不存在」。
+- 出站文件只处理宿主下发的 http/https 签名地址：拒绝重定向、按 `data.size` 预检、单文件
+  50 MiB 硬上限。超限、404、超时只丢该文件段，原因写进 `metadata.dropped_segments`，
+  文字与其余段照常送达；发送返回后立即删临时文件，结果不明时延迟 10 分钟清理。
+- 配置页 `config_widgets` 只声明 `connection`（status）与 `reconnect`（action）两个控件，
+  回调必须是 `async`；`get_config_widget_state` 要为每个声明 ID 返回状态，未知 action 抛
+  `ValueError`。重连是静默重建连接，不写配置文件。
+- `on_unload(for_reload: bool = False)`：宿主 1.3.19 用签名检测并只在重载时传 True；True
+  时静默断开（不置离线、不记 error），并在卸载前取消挂起的延迟清理任务。
 - 修改生命周期、配置热更新或网关 handler 时，`tests/test_plugin_lifecycle.py` 必须覆盖到。
 
 ## 配置
@@ -99,11 +113,17 @@ plugin.py                                → 以上全部
 - 依赖宿主 SDK 的用例用 `pytest.importorskip("maibot_sdk")`，在无 SDK 的环境里跳过。
 - 生命周期用例覆盖 `on_load` / `on_config_update` / `on_unload` 与网关 handler 的返回形状；
   只验证构造函数与 `get_components()` 不足以说明插件能在宿主里跑起来。
+- 配置页控件要在生命周期用例里覆盖快照文案、`reconnect` 的禁用条件与 action 效果，以及
+  `on_unload(for_reload=True)` 的静默行为。
+- `tests/test_file_transfer.py` 用本地 `ThreadingHTTPServer` 覆盖下载成功、声明大小超限、
+  流式超限、404、拒绝重定向、超时、空文件与临时目录清理；这些用例不访问外网。
 
 ## 联调
 
 装进宿主时整体同步到宿主插件目录，保留该目录里宿主生成的 `config.toml`
-（其中是运行期配置）。宿主不监听插件目录，改动后需要在麦麦面板重载插件或重启宿主。
+（其中是运行期配置）。宿主 1.3.19 会监视插件目录，文件变更后自动重启插件进程组：
+日志里会出现一次 `prepare_shutdown` / `shutdown` 和适配器的断开、停止记录，这是进程关停，
+不是重载失败。验证 `for_reload` 的静默分支要在麦麦面板点「重载插件」，而不是靠保存文件。
 
 ## 数据
 
