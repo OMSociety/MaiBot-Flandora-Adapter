@@ -30,7 +30,7 @@ constants / debug / runtime_state        ← 只用标准库
 config                                   → constants（+ maibot_sdk、pydantic）
 transport                                → 标准库 + websockets；config 只在 TYPE_CHECKING 下引用
 codecs/                                  → constants
-services/                                → transport
+services/                                → constants / transport
 runtime/                                 → codecs / config / constants / debug / runtime_state / services
 plugin.py                                → 以上全部
 ```
@@ -57,6 +57,11 @@ plugin.py                                → 以上全部
   成功时 `external_message_id` 取 Flandora 响应里的 `data.message_id`，
   需要回填消息号时附 `adapter_callbacks` 里的 `message_id_echo`。
 - 入站 `message_dict` 的必需字段是 `message_id`、`platform`、`message_info`、`raw_message`。
+- 宿主 1.3.16+ 下发的 `file` 段带 http 签名地址，Flandora 只收本地路径。落盘统一在
+  `plugin.py` 的 handler 里由 `services/file_transfer.py` 完成，再走同步的
+  `build_outbound_request`；不要把 `codecs/` 改成异步，也不要让段编码层自己下载。
+- 暂存目录必须用普通 `mkdir` 建（`tempfile.gettempdir()` 下按 uuid 取名），不要换回
+  `tempfile.mkdtemp`：后者生成的目录只有创建者令牌可读，Flandora 读不到会报「文件不存在」。
 - 修改生命周期、配置热更新或网关 handler 时，`tests/test_plugin_lifecycle.py` 必须覆盖到。
 
 ## 配置
@@ -66,6 +71,7 @@ plugin.py                                → 以上全部
 - 改字段名属于破坏性变更：同步 `docs/config.md`、`tests/` 与宿主插件目录里的 `config.toml`，
   并把 `config_version` 一并处理。
 - 附件大小对外以 MB 计量（`attachment_max_mb`），字节数由 `attachment_max_bytes` 属性换算。
+  该配置只管入站内联；出站文件上限是 `constants.py` 里的固定 50 MiB，不进配置。
 
 ## 交付面
 

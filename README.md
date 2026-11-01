@@ -8,7 +8,7 @@
 
 <p align="center">
   <a href="https://github.com/OMSociety/MaiBot-Flandora-Adapter/releases"><img src="https://img.shields.io/github/v/tag/OMSociety/MaiBot-Flandora-Adapter?label=version&color=07C160" alt="Version"></a>
-  <a href="https://github.com/OMSociety/MaiBot"><img src="https://img.shields.io/badge/MaiBot-1.3.0%20~%201.3.99-4B8BBE" alt="MaiBot"></a>
+  <a href="https://github.com/OMSociety/MaiBot"><img src="https://img.shields.io/badge/MaiBot-1.3.19%20~%201.3.99-4B8BBE" alt="MaiBot"></a>
   <a href="LICENSE"><img src="https://img.shields.io/github/license/OMSociety/MaiBot-Flandora-Adapter?color=07C160" alt="License"></a>
   <a href="https://github.com/OMSociety/MaiBot-Flandora-Adapter/stargazers"><img src="https://img.shields.io/github/stars/OMSociety/MaiBot-Flandora-Adapter?color=07C160" alt="Stars"></a>
   <a href="https://github.com/OMSociety/MaiBot-Flandora-Adapter/issues"><img src="https://img.shields.io/github/issues/OMSociety/MaiBot-Flandora-Adapter?color=07C160" alt="Issues"></a>
@@ -27,8 +27,8 @@
 
 | 前置 | 要求 |
 | --- | --- |
-| MaiBot | 1.3.0 – 1.3.99 |
-| 插件 SDK | 2.7.0 – 2.16.99 |
+| MaiBot | 1.3.19 – 1.3.99 |
+| 插件 SDK | 2.19.0 – 2.21.99 |
 | Python | 3.12 及以上（随麦麦运行环境，无需另装） |
 | 依赖 | `websockets >= 12.0`（宿主按 `_manifest.json` 自动安装） |
 | Flandora | 当前版本，`ob_message_format` 保持默认的 `array` |
@@ -53,6 +53,15 @@
 | `ob_server_token` | 空 | 对应插件的 `token`；两边要么都留空，要么填同一串字符 |
 | `ob_message_format` | `array` | 保持默认，本插件的段编解码按 `array` 实现 |
 | `ob_networks` | 空 | 留空即可 |
+
+## 文件收发与配置页
+
+| 方向 | 行为 |
+| --- | --- |
+| 出站文件（麦麦 → 微信） | 宿主 1.3.16 起把 `file` 段换成短时有效的 http 下载地址；适配器下载到系统临时目录，再以本地路径交给 Flandora。单文件上限 50 MiB；下载失败只丢该文件段，原因写进发送回执，其余内容照常送达。发送返回后立即删除临时文件，超时或结果不明时延迟 10 分钟清理 |
+| 入站文件（微信 → 麦麦） | Flandora 拿不到微信文件本体，只上报 `[文件] 文件名` 占位文本；这是上游限制，见 [docs/wip.md](docs/wip.md) |
+
+插件设置页会显示微信连接状态，并提供「重新连接」按钮；热重载不会把适配器短暂上报成离线。
 
 ## 文档
 

@@ -196,6 +196,66 @@ def test_event_handler_can_call_actions(logger, patched_connect):
     asyncio.run(scenario())
 
 
+def test_silent_stop_skips_disconnect_hook(logger, patched_connect):
+    """热重载用的静默停止不应触发断开回调。"""
+
+    async def scenario() -> None:
+        ws = FakeWebSocket()
+        patched_connect(ws)
+        reasons: list[str] = []
+
+        async def on_event(payload: dict) -> None:  # pragma: no cover - 本用例不发事件
+            return
+
+        async def on_disconnected(reason: str) -> None:
+            reasons.append(reason)
+
+        transport = transport_mod.FlandoraTransport(
+            settings=StubSettings(),
+            logger=logger,
+            on_event=on_event,
+            on_disconnected=on_disconnected,
+        )
+        transport.start()
+        await asyncio.sleep(0.1)
+
+        await transport.stop(silent=True)
+
+        assert reasons == []
+
+    asyncio.run(scenario())
+
+
+def test_normal_stop_reports_disconnect(logger, patched_connect):
+    """普通停止仍要上报断开。"""
+
+    async def scenario() -> None:
+        ws = FakeWebSocket()
+        patched_connect(ws)
+        reasons: list[str] = []
+
+        async def on_event(payload: dict) -> None:  # pragma: no cover - 本用例不发事件
+            return
+
+        async def on_disconnected(reason: str) -> None:
+            reasons.append(reason)
+
+        transport = transport_mod.FlandoraTransport(
+            settings=StubSettings(),
+            logger=logger,
+            on_event=on_event,
+            on_disconnected=on_disconnected,
+        )
+        transport.start()
+        await asyncio.sleep(0.1)
+
+        await transport.stop()
+
+        assert reasons == ["连接已断开"]
+
+    asyncio.run(scenario())
+
+
 def test_wrong_token_surfaces_as_action_error(logger, monkeypatch):
     """服务端拒绝握手时应抛出可读的连接错误，而不是静默重试。"""
 

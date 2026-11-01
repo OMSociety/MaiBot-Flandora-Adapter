@@ -33,10 +33,10 @@ class FlandoraRuntime:
 
         self.transport.start()
 
-    async def stop(self) -> None:
-        """停止后台连接并上报离线。"""
+    async def stop(self, *, silent: bool = False) -> None:
+        """停止后台连接；``silent`` 为真时不上报离线（供热重载使用）。"""
 
-        await self.transport.stop()
+        await self.transport.stop(silent=silent)
 
     @property
     def connected(self) -> bool:

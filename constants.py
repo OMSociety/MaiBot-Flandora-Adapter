@@ -20,6 +20,15 @@ DEFAULT_ACTION_TIMEOUT_SEC = 15.0
 DEFAULT_ATTACHMENT_MAX_MB = 20
 BYTES_PER_MB = 1024 * 1024
 
+# 出站文件：宿主 1.3.16+ 会把 file 段的 file_ref 换成 http 签名地址，适配器要先落成本地
+# 文件才能交给 Flandora。上限独立于 attachment_max_mb（那个只管入站内联），与宿主默认的
+# max_file_mib 对齐；签名地址默认 300 秒过期，所以要尽快下完。
+OUTBOUND_FILE_MAX_BYTES = 50 * BYTES_PER_MB
+OUTBOUND_FILE_TIMEOUT_SEC = 60.0
+OUTBOUND_FILE_CHUNK_BYTES = 64 * 1024
+# 发送结果不明时（超时、连接断开）Flandora 可能仍在读文件，延迟清理。
+OUTBOUND_FILE_CLEANUP_DELAY_SEC = 600.0
+
 # 入站事件类型
 POST_TYPE_MESSAGE = "message"
 POST_TYPE_MESSAGE_SENT = "message_sent"

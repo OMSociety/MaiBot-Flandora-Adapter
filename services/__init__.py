@@ -8,12 +8,24 @@ from .action_service import (
     action_response_retcode,
     is_action_response_ok,
 )
+from .file_transfer import (
+    OutboundFileError,
+    StagedFile,
+    StagedFiles,
+    remove_staged,
+    stage_outbound_files,
+)
 from .query_service import FlandoraQueryService
 
 __all__ = [
     "FlandoraActionService",
     "FlandoraQueryService",
+    "OutboundFileError",
+    "StagedFile",
+    "StagedFiles",
     "action_response_error",
     "action_response_retcode",
     "is_action_response_ok",
+    "remove_staged",
+    "stage_outbound_files",
 ]

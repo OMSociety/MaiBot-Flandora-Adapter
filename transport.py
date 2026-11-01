@@ -81,6 +81,7 @@ class FlandoraTransport:
         self._last_event_at = 0.0
         self._closed = False
         self._connected = False
+        self._suppress_disconnect = False
 
     @property
     def connected(self) -> bool:
@@ -97,10 +98,16 @@ class FlandoraTransport:
         self._runner_task = asyncio.create_task(self._run_forever(), name="flandora-transport")
         self._event_task = asyncio.create_task(self._drain_events(), name="flandora-events")
 
-    async def stop(self) -> None:
-        """关闭连接并等待后台任务结束。"""
+    async def stop(self, *, silent: bool = False) -> None:
+        """关闭连接并等待后台任务结束。
+
+        Args:
+            silent: 为 ``True`` 时不触发断开回调。插件热重载用它避免在重载窗口内
+                把适配器上报成离线；普通卸载仍如实上报。
+        """
 
         self._closed = True
+        self._suppress_disconnect = silent
         task = self._runner_task
         self._runner_task = None
         event_task = self._event_task
@@ -122,6 +129,7 @@ class FlandoraTransport:
                 await event_task
 
         self._fail_pending("连接已关闭")
+        self._suppress_disconnect = False
 
     def update_settings(self, settings: "FlandoraClientConfig") -> None:
         """就地替换连接参数，供配置热更新使用（调用方负责判断是否需要重建连接）。"""
@@ -245,7 +253,7 @@ class FlandoraTransport:
                 self._ws = None
                 self._connected = False
                 self._fail_pending("连接已断开")
-                if self._on_disconnected is not None:
+                if self._on_disconnected is not None and not self._suppress_disconnect:
                     with contextlib.suppress(Exception):
                         await self._on_disconnected("连接已断开")
 

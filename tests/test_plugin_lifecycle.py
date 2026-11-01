@@ -118,8 +118,9 @@ class StubRuntime:
     def start(self) -> None:
         self.started = True
 
-    async def stop(self) -> None:
+    async def stop(self, *, silent: bool = False) -> None:
         self.stopped = True
+        self.stop_silent = silent
 
 
 def _make_plugin(tmp_dir: Path):
@@ -349,3 +350,198 @@ def test_plugin_has_no_undeclared_logger_attribute():
     assert not hasattr(plugin_mod_plugin, "logger"), (
         "MaiBotPlugin 没有 logger 属性，日志一律走 self.ctx.logger"
     )
+
+
+def test_config_widgets_are_declared():
+    """配置页只声明连接状态与重连两个控件。"""
+
+    plugin = plugin_mod.create_plugin()
+    widgets = {widget.id: widget for widget in plugin.config_widgets}
+
+    assert set(widgets) == {"connection", "reconnect"}
+    assert widgets["connection"].kind == "status"
+    assert widgets["reconnect"].kind == "action"
+
+
+def test_widget_state_reports_connected_account():
+    """连上后状态控件显示微信账号，重连按钮可用。"""
+
+    with tempfile.TemporaryDirectory() as raw_dir:
+        plugin, _ = _make_plugin(Path(raw_dir))
+        original = _patch_build_runtime()
+        try:
+            asyncio.run(plugin.on_load())
+            states = asyncio.run(plugin.get_config_widget_state())
+        finally:
+            plugin_mod.build_runtime = original
+            asyncio.run(plugin.on_unload())
+
+        assert states["connection"].text == "已连接：微信 10086"
+        assert states["connection"].tone == "success"
+        assert states["reconnect"].disabled is False
+
+
+def test_widget_state_reports_disconnected_plugin():
+    """未连接时给出排查提示，按钮仍可按（配置启用）。"""
+
+    with tempfile.TemporaryDirectory() as raw_dir:
+        plugin, _ = _make_plugin(Path(raw_dir))
+        states = asyncio.run(plugin.get_config_widget_state())
+
+        assert "未连接" in states["connection"].text
+        assert states["connection"].tone == "neutral"
+        assert states["reconnect"].disabled is False
+
+
+def test_widget_reconnect_disabled_when_plugin_off():
+    """配置里关闭插件时重连按钮置灰。"""
+
+    with tempfile.TemporaryDirectory() as raw_dir:
+        plugin, _ = _make_plugin(Path(raw_dir))
+        defaults = plugin.build_default_config()
+        defaults["plugin"]["enabled"] = False
+        plugin.set_plugin_config(defaults)
+
+        states = asyncio.run(plugin.get_config_widget_state())
+
+        assert states["reconnect"].disabled is True
+
+
+def test_widget_action_reconnects_silently():
+    """点击重连应当静默停掉旧连接并建出新运行时。"""
+
+    with tempfile.TemporaryDirectory() as raw_dir:
+        plugin, _ = _make_plugin(Path(raw_dir))
+        original = _patch_build_runtime()
+        try:
+            asyncio.run(plugin.on_load())
+            first = plugin._runtime
+            assert first is not None
+
+            asyncio.run(plugin.on_config_widget_action("reconnect"))
+        finally:
+            plugin_mod.build_runtime = original
+
+        assert first.stopped is True
+        assert first.stop_silent is True
+        assert plugin._runtime is not None
+        assert plugin._runtime is not first
+
+        asyncio.run(plugin.on_unload())
+
+
+def test_unknown_widget_action_is_rejected():
+    """未知 action 要抛出可读的 ValueError。"""
+
+    with tempfile.TemporaryDirectory() as raw_dir:
+        plugin, _ = _make_plugin(Path(raw_dir))
+        try:
+            asyncio.run(plugin.on_config_widget_action("remove"))
+        except ValueError as exc:
+            assert "未知配置页操作: remove" in str(exc)
+        else:
+            raise AssertionError("未知配置页操作应抛 ValueError")
+
+
+def test_reload_unload_is_silent():
+    """热重载卸载不把适配器上报成离线。"""
+
+    with tempfile.TemporaryDirectory() as raw_dir:
+        plugin, _ = _make_plugin(Path(raw_dir))
+        original = _patch_build_runtime()
+        try:
+            asyncio.run(plugin.on_load())
+            runtime = plugin._runtime
+            asyncio.run(plugin.on_unload(for_reload=True))
+        finally:
+            plugin_mod.build_runtime = original
+
+        assert runtime is not None
+        assert runtime.stopped is True
+        assert runtime.stop_silent is True
+        assert plugin._runtime is None
+
+
+def test_normal_unload_reports_offline():
+    """普通卸载仍走非静默停止。"""
+
+    with tempfile.TemporaryDirectory() as raw_dir:
+        plugin, _ = _make_plugin(Path(raw_dir))
+        original = _patch_build_runtime()
+        try:
+            asyncio.run(plugin.on_load())
+            runtime = plugin._runtime
+            asyncio.run(plugin.on_unload())
+        finally:
+            plugin_mod.build_runtime = original
+
+        assert runtime is not None
+        assert runtime.stop_silent is False
+
+
+def test_deferred_cleanup_removes_files_on_unload():
+    """结果不明时挂起的清理任务在卸载时立即删掉文件。"""
+
+    services = _load("services")
+    with tempfile.TemporaryDirectory() as raw_dir:
+        tmp_dir = Path(raw_dir)
+        plugin, _ = _make_plugin(tmp_dir)
+        staged_path = tmp_dir / "pending.bin"
+        staged_path.write_bytes(b"pending")
+        staged = services.StagedFile(path=staged_path, directory=tmp_dir)
+
+        async def scenario() -> None:
+            plugin._defer_staged_cleanup([staged])
+            assert staged_path.exists()
+            plugin._cancel_cleanup_tasks()
+            await asyncio.sleep(0)
+
+        asyncio.run(scenario())
+
+        assert not staged_path.exists()
+
+
+def test_gateway_handler_reports_file_failures_and_cleans_temp():
+    """下载失败的文件段从消息里移除，原因进回执，临时文件随后删除。"""
+
+    services = _load("services")
+    with tempfile.TemporaryDirectory() as raw_dir:
+        tmp_dir = Path(raw_dir)
+        plugin, _ = _make_plugin(tmp_dir)
+        original_runtime = _patch_build_runtime(
+            {"status": "ok", "retcode": 0, "data": {"message_id": 1}}
+        )
+        original_stage = plugin_mod.stage_outbound_files
+        staged_path = tmp_dir / "payload.bin"
+        staged_path.write_bytes(b"payload")
+
+        async def fake_stage(message, *, logger):
+            del logger
+            message["raw_message"] = [{"type": "text", "data": "你好"}]
+            return services.StagedFiles(
+                files=[services.StagedFile(path=staged_path, directory=tmp_dir)],
+                failures=["file:报告.pdf 下载失败（HTTP 404）"],
+            )
+
+        plugin_mod.stage_outbound_files = fake_stage
+        try:
+            asyncio.run(plugin.on_load())
+            message = {
+                "message_id": "1",
+                "platform": "wechat",
+                "message_info": {
+                    "user_info": {"user_id": "10086", "user_nickname": "bot"},
+                    "group_info": {"group_id": "88", "group_name": "群"},
+                },
+                "raw_message": [{"type": "file", "data": {"url": "http://example/x"}}],
+            }
+            result = asyncio.run(plugin.handle_flandora_gateway(message, route={}, metadata=None))
+        finally:
+            plugin_mod.stage_outbound_files = original_stage
+            plugin_mod.build_runtime = original_runtime
+
+        assert result["success"] is True
+        assert result["metadata"]["dropped_segments"] == ["file:报告.pdf 下载失败（HTTP 404）"]
+        assert not staged_path.exists()
+
+        asyncio.run(plugin.on_unload())

@@ -9,7 +9,13 @@ from __future__ import annotations
 import asyncio
 from typing import Any, ClassVar, Dict, List, Optional, Tuple
 
-from maibot_sdk import MaiBotPlugin, MessageGateway, PluginConfigBase
+from maibot_sdk import (
+    ConfigWidget,
+    ConfigWidgetState,
+    MaiBotPlugin,
+    MessageGateway,
+    PluginConfigBase,
+)
 
 from .codecs import build_outbound_request
 from .config import FlandoraPluginSettings
@@ -18,12 +24,16 @@ from .constants import (
     FLANDORA_PLATFORM,
     FLANDORA_PROTOCOL,
     FLANDORA_SCOPE,
+    OUTBOUND_FILE_CLEANUP_DELAY_SEC,
 )
 from .runtime import FlandoraRuntime, build_runtime
 from .services import (
+    StagedFile,
     action_response_error,
     action_response_retcode,
     is_action_response_ok,
+    remove_staged,
+    stage_outbound_files,
 )
 from .transport import FlandoraActionError
 
@@ -33,13 +43,21 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
 
     config_model: ClassVar[type[PluginConfigBase] | None] = FlandoraPluginSettings
 
+    # 配置页只放两个控件：一个看连接状态，一个手动重连；与 SnowLuma 适配器保持一致。
+    config_widgets: ClassVar[List[ConfigWidget]] = [
+        ConfigWidget(id="connection", kind="status", label="微信连接器状态"),
+        ConfigWidget(id="reconnect", kind="action", label="重新连接"),
+    ]
+
     def __init__(self) -> None:
         """初始化插件。"""
 
         super().__init__()
         self._runtime: Optional[FlandoraRuntime] = None
-        self._connection_signature: Optional[Tuple[str, int, str, str]] = None
+        self._connection_signature: Optional[Tuple[str, int, str]] = None
         self._lifecycle_lock = asyncio.Lock()
+        self._cleanup_tasks: set[asyncio.Task[None]] = set()
+        self._deferred_files: set[StagedFile] = set()
 
     async def on_load(self) -> None:
         """插件加载：按配置决定是否连上 Flandora。"""
@@ -53,10 +71,44 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
             return
         await self._start_runtime(settings)
 
-    async def on_unload(self) -> None:
-        """插件卸载：断开连接并上报离线。"""
+    async def on_unload(self, for_reload: bool = False) -> None:
+        """插件卸载：断开连接；热重载时静默断开，不把重载当掉线。
 
-        await self._stop_runtime()
+        Args:
+            for_reload: 宿主 1.3.19 起在热重载时传 ``True``；普通卸载为 ``False``。
+        """
+
+        self._cancel_cleanup_tasks()
+        await self._stop_runtime(silent=for_reload)
+
+    async def get_config_widget_state(self) -> Dict[str, ConfigWidgetState]:
+        """返回配置页控件的实时状态。"""
+
+        runtime = self._runtime
+        account_id = runtime.runtime_state.account_id if runtime is not None else ""
+        connected = bool(runtime is not None and runtime.connected and account_id)
+        text = (
+            f"已连接：微信 {account_id}"
+            if connected
+            else "未连接，请检查连接配置，并确认 Flandora 客户端已启动"
+        )
+        return {
+            "connection": ConfigWidgetState(
+                text=text,
+                tone="success" if connected else "neutral",
+            ),
+            "reconnect": ConfigWidgetState(disabled=not self._settings().should_connect()),
+        }
+
+    async def on_config_widget_action(self, action_id: str) -> None:
+        """处理配置页按钮：目前只有「重新连接」。"""
+
+        if action_id != "reconnect":
+            raise ValueError(f"未知配置页操作: {action_id}")
+        settings = self._settings()
+        if not settings.should_connect():
+            return
+        await self._restart_runtime(settings, silent_stop=True)
 
     async def on_config_update(self, scope: str, config_data: Dict[str, Any], version: str) -> None:
         """配置热更新：必要时重建连接，否则就地替换配置快照。"""
@@ -101,7 +153,7 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         del metadata, kwargs
 
         internal_message_id = str(message.get("message_id") or "").strip()
-        runtime = self._runtime
+        staged = await stage_outbound_files(message, logger=self.ctx.logger)
 
         try:
             request = build_outbound_request(
@@ -110,9 +162,17 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
                 route=route,
             )
         except ValueError as exc:
-            return {"success": False, "error": str(exc), "metadata": {"action": "", "retcode": -1}}
+            remove_staged(staged.files)
+            error = str(exc)
+            if staged.failures:
+                error = f"{error}；{'、'.join(staged.failures)}"
+            return {"success": False, "error": error, "metadata": {"action": "", "retcode": -1}}
 
+        request.dropped.extend(staged.failures)
+
+        runtime = self._runtime
         if runtime is None or not runtime.connected:
+            remove_staged(staged.files)
             return {
                 "success": False,
                 "error": "尚未连接 Flandora，消息未发送",
@@ -122,14 +182,22 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         try:
             response = await runtime.action_service.call(request.action, request.params)
         except FlandoraActionError as exc:
+            # 超时或连接中断时 Flandora 可能仍在读文件，延后清理，避免删掉正在发送的附件。
+            self._defer_staged_cleanup(staged.files)
             return {
                 "success": False,
                 "error": str(exc),
                 "metadata": {"action": request.action, "retcode": exc.retcode},
             }
+        except asyncio.CancelledError:
+            remove_staged(staged.files)
+            raise
         except Exception as exc:  # 连接层意外异常：如实回报，不吞掉
             self.ctx.logger.warning(f"发送消息时发生未预期的错误：{exc}")
+            self._defer_staged_cleanup(staged.files)
             return {"success": False, "error": str(exc), "metadata": {"action": request.action}}
+
+        remove_staged(staged.files)
 
         if not is_action_response_ok(response):
             error = action_response_error(response)
@@ -184,6 +252,35 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
             },
         }
 
+    def _defer_staged_cleanup(self, files: List[StagedFile]) -> None:
+        """发送结果不明时延后清理临时文件，给 Flandora 留出读文件的时间。"""
+
+        if not files:
+            return
+        self._deferred_files.update(files)
+        task = asyncio.create_task(self._cleanup_after_delay(files), name="flandora-file-cleanup")
+        self._cleanup_tasks.add(task)
+        task.add_done_callback(self._cleanup_tasks.discard)
+
+    async def _cleanup_after_delay(self, files: List[StagedFile]) -> None:
+        """等待清理延迟；任务被取消时同样会删除文件。"""
+
+        try:
+            await asyncio.sleep(OUTBOUND_FILE_CLEANUP_DELAY_SEC)
+        finally:
+            remove_staged(files)
+            self._deferred_files.difference_update(files)
+
+    def _cancel_cleanup_tasks(self) -> None:
+        """取消所有待清理任务，并当场删掉尚未到点的文件。"""
+
+        for task in list(self._cleanup_tasks):
+            task.cancel()
+        self._cleanup_tasks.clear()
+        if self._deferred_files:
+            remove_staged(list(self._deferred_files))
+            self._deferred_files.clear()
+
     def _settings(self) -> FlandoraPluginSettings:
         """取当前配置；未注入时返回一份默认配置。"""
 
@@ -230,13 +327,13 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
             f"port={settings.client.port} scope={FLANDORA_SCOPE}"
         )
 
-    async def _stop_runtime(self) -> None:
+    async def _stop_runtime(self, *, silent: bool = False) -> None:
         """停掉运行时并清空状态。"""
 
         async with self._lifecycle_lock:
-            await self._stop_runtime_locked()
+            await self._stop_runtime_locked(silent=silent)
 
-    async def _stop_runtime_locked(self) -> None:
+    async def _stop_runtime_locked(self, *, silent: bool = False) -> None:
         """停掉运行时并清空状态；调用方须已持有生命周期锁。"""
 
         runtime = self._runtime
@@ -244,14 +341,19 @@ class FlandoraAdapterPlugin(MaiBotPlugin):
         self._connection_signature = None
         if runtime is None:
             return
-        await runtime.stop()
-        self.ctx.logger.info("Flandora 适配器已停止")
+        await runtime.stop(silent=silent)
+        if silent:
+            self.ctx.logger.debug("Flandora 适配器已停止（热重载，不上报离线）")
+        else:
+            self.ctx.logger.info("Flandora 适配器已停止")
 
-    async def _restart_runtime(self, settings: FlandoraPluginSettings) -> None:
+    async def _restart_runtime(
+        self, settings: FlandoraPluginSettings, *, silent_stop: bool = False
+    ) -> None:
         """按新配置重建运行时，停与起在同一把锁内完成。"""
 
         async with self._lifecycle_lock:
-            await self._stop_runtime_locked()
+            await self._stop_runtime_locked(silent=silent_stop)
             await self._start_runtime_locked(settings)
 
 

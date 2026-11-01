@@ -20,7 +20,7 @@
 | `max_reconnect_delay_sec` | `float` | `60.0` | 重连间隔的退避上限 |
 | `heartbeat_interval_sec` | `float` | `30.0` | 空闲阈值：超过该值两倍、再宽限 5 秒仍没有任何事件就主动重连 |
 | `action_timeout_sec` | `float` | `15.0` | 单个动作请求的等待上限，超时按失败处理 |
-| `attachment_max_mb` | `int` | `20` | 单个附件内联上限（MB）；超限的附件退化为占位文本，其余段照常送达 |
+| `attachment_max_mb` | `int` | `20` | 入站附件内联上限（MB）；超限的附件退化为占位文本，其余段照常送达。只管微信 → 麦麦方向；出站文件固定 50 MiB，不由此项控制 |
 
 ## `[filters]`
 
