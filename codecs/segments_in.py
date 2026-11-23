@@ -37,6 +37,7 @@ from ..constants import (
     SEGMENT_TEXT,
     SEGMENT_VIDEO,
 )
+from ..redact import fold_inline_base64
 
 PLACEHOLDER_PICTURE = "[图片]"
 PLACEHOLDER_VOICE = "[语音]"
@@ -164,7 +165,9 @@ def _binary_component(
 
     payload = read_reference_bytes(reference)
     if not payload:
-        logger.warning(f"{placeholder} 的内容读不到，已退化为占位文本：{reference}")
+        logger.warning(
+            f"{placeholder} 的内容读不到，已退化为占位文本：{fold_inline_base64(reference)}"
+        )
         return text_component(placeholder)
 
     if len(payload) > attachment_max_bytes:
@@ -204,7 +207,7 @@ def _file_component(
 
     payload = read_reference_bytes(reference)
     if not payload:
-        logger.warning(f"文件内容读不到，已退化为占位文本：{reference}")
+        logger.warning(f"文件内容读不到，已退化为占位文本：{fold_inline_base64(reference)}")
         return text_component(label)
 
     if len(payload) > attachment_max_bytes:

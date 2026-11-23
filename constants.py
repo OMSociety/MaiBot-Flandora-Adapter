@@ -29,6 +29,10 @@ OUTBOUND_FILE_CHUNK_BYTES = 64 * 1024
 # 发送结果不明时（超时、连接断开）Flandora 可能仍在读文件，延迟清理。
 OUTBOUND_FILE_CLEANUP_DELAY_SEC = 600.0
 
+# 入站媒体取件：Flandora 与适配器分处两台机器时，图片/语音/视频/文件按 http 地址取到本机再内联。
+# 单件上限取 attachment_max_mb，这里只定超时。
+MEDIA_FETCH_TIMEOUT_SEC = 30.0
+
 # 入站事件类型
 POST_TYPE_MESSAGE = "message"
 POST_TYPE_MESSAGE_SENT = "message_sent"

@@ -11,6 +11,7 @@ import time
 from typing import Any, Dict, List, Mapping
 
 from ..constants import FLANDORA_PLATFORM
+from ..redact import fold_inline_base64
 from .segments_in import (
     InboundSegments,
     build_components,
@@ -51,7 +52,8 @@ def build_inbound_segments(
     if built.components:
         return built
 
-    raw_text = str(payload.get("raw_message") or "").strip()
+    # 兜底文本会原样进模型上下文：内联二进制载荷先折叠，免得几 MB 的 base64 被当字数计费
+    raw_text = fold_inline_base64(str(payload.get("raw_message") or "")).strip()
     if raw_text:
         built.components.append(text_component(raw_text))
     return built

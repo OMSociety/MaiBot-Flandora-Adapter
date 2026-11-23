@@ -22,6 +22,7 @@ from ..constants import (
     POST_TYPE_META_EVENT,
     POST_TYPE_NOTICE,
 )
+from ..services import prefetch_inbound, release_media
 from ..transport import FlandoraActionError
 
 
@@ -118,17 +119,29 @@ class FlandoraEventRouter:
             self._logger.debug("自己发送的消息已按配置丢弃")
             return
 
+        attachment_max_bytes = self._settings.client.attachment_max_bytes
+        # 跨机部署时媒体只带 http 地址：先取到本机，编码层（同步）再从盘上读进内存
+        segments = payload.get("message")
+        fetched: list = []
+        if isinstance(segments, list):
+            segments, fetched = await prefetch_inbound(
+                segments, max_bytes=attachment_max_bytes, logger=self._logger
+            )
+            payload = {**payload, "message": segments}
         try:
             message_dict = build_message_dict(
                 payload,
                 self_id=self_id,
-                attachment_max_bytes=self._settings.client.attachment_max_bytes,
+                attachment_max_bytes=attachment_max_bytes,
                 logger=self._logger,
                 quote_wakes=filters.quote_wakes,
             )
         except ValueError as exc:
             self._logger.warning(f"入站消息格式不受支持，已丢弃：{exc}")
             return
+        finally:
+            for path in fetched:
+                release_media(path)
 
         external_message_id = str(payload.get("message_id") or "").strip()
         await self._push(

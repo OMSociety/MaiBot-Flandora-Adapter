@@ -20,10 +20,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   读不到或超限退化为文本占位。
 - 入站卡片：公众号、B 站分享、小程序、聊天记录等的结构化字段写入
   `additional_config.flandora_card`。
+- 跨机入站媒体：适配器与 Flandora 分处两台机器时，图片、语音、视频与文件按段里的
+  http 地址取到本机临时文件再交给麦麦，单件上限取 `attachment_max_mb`，取不到时该段
+  退化为占位文本。
 
 ### 变更
 
 - 需要 Flandora 1.2.0 及以上才能收到语音、文件、视频本体与卡片解读。
+- 内联的 `base64://` 载荷不再以文本形态进日志或兜底文本：长于 32 字符的串折叠成
+  `base64://<N 字符已省略>`，避免整段二进制被当正文计费。
 
 ## [1.1.0] - 2026-11-02
 

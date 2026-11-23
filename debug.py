@@ -9,6 +9,8 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .redact import fold_inline_base64
+
 _MAX_PREVIEW_CHARS = 2000
 
 
@@ -42,6 +44,7 @@ class FlandoraDebugLogger:
         except (TypeError, ValueError):
             text = repr(payload)
 
+        text = fold_inline_base64(text)
         if len(text) > _MAX_PREVIEW_CHARS:
             text = f"{text[:_MAX_PREVIEW_CHARS]}...(已截断，原文共 {len(text)} 字符)"
 

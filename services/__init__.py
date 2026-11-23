@@ -15,6 +15,8 @@ from .file_transfer import (
     remove_staged,
     stage_outbound_files,
 )
+from .media_fetch import prefetch_inbound
+from .media_fetch import release as release_media
 from .query_service import FlandoraQueryService
 
 __all__ = [
@@ -26,6 +28,8 @@ __all__ = [
     "action_response_error",
     "action_response_retcode",
     "is_action_response_ok",
+    "prefetch_inbound",
+    "release_media",
     "remove_staged",
     "stage_outbound_files",
 ]

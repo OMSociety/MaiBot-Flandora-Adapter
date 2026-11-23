@@ -116,7 +116,7 @@ async def stage_outbound_files(
             continue
 
         try:
-            file = await _download(
+            file = await download_media(
                 str(data.get("url") or "").strip(),
                 filename=_safe_filename(name),
                 max_bytes=max_bytes,
@@ -154,8 +154,15 @@ def _is_http_file(component: Any) -> bool:
     return url.startswith("http://") or url.startswith("https://")
 
 
-async def _download(url: str, *, filename: str, max_bytes: int, timeout: float) -> StagedFile:
-    """在线程里下载，并把整体耗时限制在 ``timeout`` 内。
+async def download_media(
+    url: str,
+    *,
+    filename: str,
+    max_bytes: int,
+    timeout: float,
+    prefix: str = _TEMP_PREFIX,
+) -> StagedFile:
+    """在线程里下载一个 http 资源，并把整体耗时限制在 ``timeout`` 内。
 
     暂存目录用普通 ``mkdir`` 创建（系统临时目录下按 uuid 取名），不用
     ``tempfile.mkdtemp``：后者会生成仅创建者令牌可访问的 DACL，插件进程与
@@ -163,7 +170,7 @@ async def _download(url: str, *, filename: str, max_bytes: int, timeout: float) 
     """
 
     stage_root = Path(tempfile.gettempdir())
-    directory = stage_root / f"{_TEMP_PREFIX}{uuid.uuid4().hex[:8]}"
+    directory = stage_root / f"{prefix}{uuid.uuid4().hex[:8]}"
     await asyncio.to_thread(directory.mkdir, parents=False)
     cancel = threading.Event()
     worker = asyncio.ensure_future(

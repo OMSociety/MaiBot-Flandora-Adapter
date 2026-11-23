@@ -76,6 +76,11 @@ plugin.py                                → 以上全部
   `ValueError`。重连是静默重建连接，不写配置文件。
 - `on_unload(for_reload: bool = False)`：宿主 1.3.19 用签名检测并只在重载时传 True；True
   时静默断开（不置离线、不记 error），并在卸载前取消挂起的延迟清理任务。
+- 跨机部署时入站媒体的 `file` 只是 http `url` 的旁证：取件在 `runtime/router.py` 里异步交给
+  `services/media_fetch.py` 完成，把段改指向临时副本后再进同步的 `build_message_dict`；
+  `codecs/` 保持同步读盘，不在里面发网络请求。临时文件在编码完成后立即删除。
+- 内联二进制进日志或兜底文本前一律过 `redact.fold_inline_base64`：长串折叠成字数说明，
+  避免整段 base64 被当正文写进模型上下文。
 - 入站 `file` / `video` 段由 Flandora 给本地路径（`file`）与 `name`，一律在 `codecs/segments_in.py` 同步读盘；
   `video` 复用文件搬运并在纯文本里记作 `[视频]`，正文已含文件名时不重复占位。事件上的 `card`
   原样放进 `additional_config.flandora_card`，不在适配器里二次解析。
