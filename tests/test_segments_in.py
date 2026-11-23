@@ -152,3 +152,45 @@ def test_http_reference_is_never_downloaded(logger):
     )
 
     assert built.components == [{"type": "text", "data": "[图片]"}]
+
+
+def _b64(payload: bytes) -> str:
+    return "base64://" + base64.b64encode(payload).decode("ascii")
+
+
+def test_video_segment_is_carried_as_file_component(logger):
+    built = _build(
+        [{"type": "video", "data": {"file": _b64(b"mp4-bytes"), "name": "clip.mp4"}}],
+        logger=logger,
+    )
+
+    component = built.components[0]
+    assert component["type"] == "file"
+    assert component["data"]["name"] == "clip.mp4"
+    assert component["data"]["size"] == "9"
+    assert segments_in.build_plain_text(built.components) == "[视频]"
+
+
+def test_video_over_limit_degrades_to_placeholder(logger):
+    built = _build(
+        [{"type": "video", "data": {"file": _b64(b"x" * 32), "name": "clip.mp4"}}],
+        limit=8,
+        logger=logger,
+    )
+
+    assert built.components[0]["type"] == "text"
+    assert built.components[0]["data"].startswith("[视频]")
+    assert "超过内联上限" in built.components[0]["data"]
+
+
+def test_file_label_is_not_repeated_when_text_already_names_it(logger):
+    built = _build(
+        [
+            {"type": "text", "data": {"text": "[文件] 论文.docx（3 B）"}},
+            {"type": "file", "data": {"file": _b64(b"doc"), "name": "论文.docx"}},
+        ],
+        logger=logger,
+    )
+
+    assert [c["type"] for c in built.components] == ["text", "file"]
+    assert segments_in.build_plain_text(built.components) == "[文件] 论文.docx（3 B）"

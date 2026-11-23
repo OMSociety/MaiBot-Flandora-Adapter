@@ -10,6 +10,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.2.0] - Unreleased
+
+### 新增
+
+- 入站文件：Flandora 把文件落到本机时，适配器读盘后以文件组件交给麦麦；正文里已有
+  `[文件] 文件名（大小）` 时不再重复占位。
+- 入站视频：视频本体在本机且不超过内联上限时按文件组件传入，纯文本里记作 `[视频]`；
+  读不到或超限退化为文本占位。
+- 入站卡片：公众号、B 站分享、小程序、聊天记录等的结构化字段写入
+  `additional_config.flandora_card`。
+
+### 变更
+
+- 需要 Flandora 1.2.0 及以上才能收到语音、文件、视频本体与卡片解读。
+
 ## [1.1.0] - 2026-11-02
 
 ### 新增

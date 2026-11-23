@@ -11,9 +11,12 @@
 | `image` / `emoji` | 解码或读盘后作为图片传入，同时计算哈希；描述留空，由麦麦识图生成 |
 | `face` | 转成文本 `[表情 id]` |
 | `record` | 转成麦麦的语音段；描述留空 |
-| `file` | Flandora 只上报 `[文件] 文件名` 占位文本：文件本体在微信 CDN，桥接器拿不到（见 `wip.md`） |
+| `file` | Flandora 在文件已落盘时带本地路径与 `name`，适配器读盘后作为文件组件传入；正文里已有的 `[文件] 文件名（大小）` 文本照常保留，不再重复占位。本体不在本机或超过内联上限时只有文本 |
 | `reply` | 以引用段传入，携带被引消息的 `message_id`；被引的是机器人自己发的消息时（事件上的 `reply_to_self`）按被 @ 处理，正文不改写 |
-| `video`、合并转发、其它 | 转成占位文本，其余段照常送达 |
+| `video` | 与 `file` 同一条搬运路径：本体读得到且不超上限时作为文件组件传入，纯文本里记作 `[视频]`；读不到或超限退化为 `[视频]` 文本 |
+| 合并转发、其它 | 转成占位文本，其余段照常送达 |
+
+事件上的 `card`（Flandora 对 appmsg 类消息的结构化解读：`kind`、`label`、`title`、`desc`、`url`、`source`、`extra`、`lines`）原样写入 `additional_config.flandora_card`；可读正文已经在 `text` 段里，卡片字段只供宿主侧插件使用。
 
 「被提及」有三个来源：段里指向自己的 `at`、事件上的 `is_mentioned`、事件上的 `reply_to_self`。三者都写进 `additional_config` 供宿主判断；`reply_to_self` 始终是事件里的真实值。
 

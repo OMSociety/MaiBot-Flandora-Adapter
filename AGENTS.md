@@ -76,6 +76,9 @@ plugin.py                                → 以上全部
   `ValueError`。重连是静默重建连接，不写配置文件。
 - `on_unload(for_reload: bool = False)`：宿主 1.3.19 用签名检测并只在重载时传 True；True
   时静默断开（不置离线、不记 error），并在卸载前取消挂起的延迟清理任务。
+- 入站 `file` / `video` 段由 Flandora 给本地路径（`file`）与 `name`，一律在 `codecs/segments_in.py` 同步读盘；
+  `video` 复用文件搬运并在纯文本里记作 `[视频]`，正文已含文件名时不重复占位。事件上的 `card`
+  原样放进 `additional_config.flandora_card`，不在适配器里二次解析。
 - 修改生命周期、配置热更新或网关 handler 时，`tests/test_plugin_lifecycle.py` 必须覆盖到。
 
 ## 配置

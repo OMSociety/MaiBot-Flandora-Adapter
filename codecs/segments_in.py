@@ -41,6 +41,8 @@ from ..constants import (
 PLACEHOLDER_PICTURE = "[图片]"
 PLACEHOLDER_VOICE = "[语音]"
 PLACEHOLDER_VIDEO = "[视频]"
+PLACEHOLDER_FILE = "[文件]"
+VIDEO_SUFFIXES = (".mp4", ".mov", ".mkv", ".avi", ".webm")
 PLACEHOLDER_REPLY = "[回复]"
 PLACEHOLDER_FORWARD = "[合并转发]"
 
@@ -186,12 +188,16 @@ def _file_component(
     *,
     attachment_max_bytes: int,
     logger: Any,
+    placeholder: str = PLACEHOLDER_FILE,
 ) -> Dict[str, Any]:
-    """构造文件组件；读不到或超限时退化为占位文本。"""
+    """构造文件组件；读不到或超限时退化为占位文本。
+
+    ``placeholder`` 是占位文本的前缀，文件用 ``[文件]``，视频段复用同一条搬运路径并用 ``[视频]``。
+    """
 
     reference = str(data.get("file") or data.get("url") or "").strip()
     name = str(data.get("name") or "").strip()
-    label = f"[文件] {name}" if name else "[文件]"
+    label = f"{placeholder} {name}" if name else placeholder
 
     if not reference:
         return text_component(label)
@@ -305,7 +311,14 @@ def build_components(
             continue
 
         if kind == SEGMENT_VIDEO:
-            result.components.append(text_component(PLACEHOLDER_VIDEO))
+            result.components.append(
+                _file_component(
+                    data,
+                    attachment_max_bytes=attachment_max_bytes,
+                    logger=logger,
+                    placeholder=PLACEHOLDER_VIDEO,
+                )
+            )
             continue
 
         if kind == SEGMENT_FILE:
@@ -341,6 +354,7 @@ def build_plain_text(components: Sequence[Mapping[str, Any]]) -> str:
     """按宿主可读的方式拼出纯文本。"""
 
     parts: List[str] = []
+    texts = [str(c.get("data") or "") for c in components if c.get("type") == COMPONENT_TEXT]
     for component in components:
         kind = str(component.get("type") or "")
         data = component.get("data")
@@ -359,7 +373,13 @@ def build_plain_text(components: Sequence[Mapping[str, Any]]) -> str:
         elif kind == COMPONENT_FILE:
             info = data if isinstance(data, Mapping) else {}
             name = str(info.get("name") or "").strip()
-            parts.append(f"[文件] {name}" if name else "[文件]")
+            if name and any(name in text for text in texts):
+                # Flandora 已在文本段里写明文件名，不重复占位
+                continue
+            if name.lower().endswith(VIDEO_SUFFIXES):
+                parts.append(PLACEHOLDER_VIDEO)
+            else:
+                parts.append(f"{PLACEHOLDER_FILE} {name}" if name else PLACEHOLDER_FILE)
         elif kind == COMPONENT_REPLY:
             parts.append(PLACEHOLDER_REPLY)
     return "".join(parts).strip()

@@ -364,3 +364,20 @@ def test_notice_dedupe_key_is_stable_and_distinct(logger):
     assert notice.build_notice_dedupe_key(first) == notice.build_notice_dedupe_key(second)
     assert notice.build_notice_dedupe_key(first) != notice.build_notice_dedupe_key(other)
     assert notice.build_notice_dedupe_key(first).startswith("notice:")
+
+
+def test_card_fields_are_forwarded_in_additional_config(logger):
+    card = {"kind": "link", "label": "链接", "title": "标题", "url": "https://example.com/a"}
+    built = inbound.build_message_dict(
+        _group_event(card=card), self_id="1001", attachment_max_bytes=1024, logger=logger
+    )
+
+    assert built["message_info"]["additional_config"]["flandora_card"] == card
+
+
+def test_additional_config_has_no_card_key_without_card(logger):
+    built = inbound.build_message_dict(
+        _group_event(), self_id="1001", attachment_max_bytes=1024, logger=logger
+    )
+
+    assert "flandora_card" not in built["message_info"]["additional_config"]

@@ -126,6 +126,10 @@ def build_message_dict(
         "flandora_wxid": str(sender.get("wxid") or "").strip(),
         "flandora_group_wxid": str(payload.get("group_wxid") or "").strip(),
     }
+    # 卡片消息（公众号文章、B 站分享、小程序、聊天记录等）：正文已是可读文本，结构化字段原样带上
+    card = payload.get("card")
+    if isinstance(card, Mapping) and card:
+        additional_config["flandora_card"] = dict(card)
 
     message_info: Dict[str, Any] = {
         "user_info": {

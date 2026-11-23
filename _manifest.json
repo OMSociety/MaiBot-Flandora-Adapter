@@ -1,7 +1,7 @@
 {
   "manifest_version": 2,
   "id": "omsociety.flandora-adapter",
-  "version": "1.1.0",
+  "version": "1.2.0",
   "name": "Flandora 微信适配器",
   "description": "微信个人号适配器，支持 Flandora 客户端",
   "author": {
